@@ -1,0 +1,23 @@
+# Chỉ chạy PostgreSQL. 3 file trong ./sql tự chạy ở LẦN ĐẦU khởi tạo volume.
+# Muốn chạy lại SQL từ đầu:  docker compose down -v && docker compose up -d
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: cms_postgres
+    environment:
+      POSTGRES_USER: cms
+      POSTGRES_PASSWORD: cms
+      POSTGRES_DB: cms_nguonhang1688
+    ports:
+      - "5432:5432"   # đã có Postgres khác chiếm 5432 thì đổi thành "5433:5432" và sửa DATABASE_URL
+    volumes:
+      - cms_pgdata:/var/lib/postgresql/data
+      - ./sql:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cms -d cms_nguonhang1688"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  cms_pgdata:
