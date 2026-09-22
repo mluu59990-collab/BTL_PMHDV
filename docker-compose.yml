@@ -1,4 +1,4 @@
-# Chỉ chạy PostgreSQL. 3 file trong ./sql tự chạy ở LẦN ĐẦU khởi tạo volume.
+# Chỉ chạy PostgreSQL. Các file trong ./sql tự chạy ở LẦN ĐẦU khởi tạo volume.
 # Muốn chạy lại SQL từ đầu:  docker compose down -v && docker compose up -d
 services:
   db:

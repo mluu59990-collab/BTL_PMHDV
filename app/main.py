@@ -29,8 +29,8 @@ async def lifespan(_: FastAPI):
 def create_app() -> FastAPI:
     app = FastAPI(
         title=settings.app_name,
-        description="Backend/CMS quản trị logistic & mua hộ Trung - Việt (Buổi 1: Auth/RBAC, Tỷ giá, Thang bảng phí)",
-        version="0.1.0",
+        description="Backend/CMS quản trị logistic & mua hộ Trung - Việt (Buổi 1–2: Auth/RBAC, Tỷ giá, Biểu phí, Danh mục sản phẩm)",
+        version="0.2.0",
         debug=settings.debug,
         lifespan=lifespan,
     )
