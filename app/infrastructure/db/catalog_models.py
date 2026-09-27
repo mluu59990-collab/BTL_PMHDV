@@ -7,7 +7,6 @@ from sqlalchemy import (
     BigInteger,
     Boolean,
     Date,
-    DateTime,
     ForeignKey,
     Numeric,
     String,
@@ -18,16 +17,17 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.clock import utcnow
 from app.infrastructure.db.models import Base
+from app.infrastructure.db.types import UTCDateTime
 
 
 class CatalogMixin:
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=utcnow, server_default=func.now()
+        UTCDateTime(), default=utcnow, server_default=func.now()
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=utcnow, server_default=func.now()
+        UTCDateTime(), default=utcnow, server_default=func.now()
     )
 
 

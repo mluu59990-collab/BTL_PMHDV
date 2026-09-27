@@ -1,6 +1,6 @@
 from datetime import date
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.clock import utcnow
@@ -70,17 +70,16 @@ class SqlFeeConfigRepository(FeeConfigRepository):
             stmt = stmt.where(M.fee_type == fee_type)
         if active_only:
             stmt = stmt.where(M.is_active.is_(True))
-        stmt = stmt.order_by(M.fee_type, M.unit, M.tier_min.asc().nulls_first(), M.effective_date.desc(), M.id)
+        stmt = stmt.order_by(M.fee_type, M.unit, M.tier_min.asc(), M.effective_date.desc(), M.id)
         return [_to_entity(m) for m in (await self._s.execute(stmt)).scalars().all()]
 
     async def list_current(self, *, on_date: date, fee_type: str | None) -> list[FeeConfig]:
-        # Mỗi (fee_type, unit, tier_min) lấy dòng active có effective_date mới nhất <= on_date
-        stmt = (
-            select(M)
-            .distinct(M.fee_type, M.unit, M.tier_min)
-            .where(M.is_active.is_(True), M.effective_date <= on_date)
-            .order_by(M.fee_type, M.unit, M.tier_min.asc().nulls_first(), M.effective_date.desc(), M.id.desc())
-        )
+        ranked = select(M.id, func.row_number().over(
+            partition_by=(M.fee_type, M.unit, M.tier_min),
+            order_by=(M.effective_date.desc(), M.id.desc()),
+        ).label("position")).where(M.is_active.is_(True), M.effective_date <= on_date)
         if fee_type:
-            stmt = stmt.where(M.fee_type == fee_type)
+            ranked = ranked.where(M.fee_type == fee_type)
+        ranked = ranked.subquery()
+        stmt = select(M).join(ranked, M.id == ranked.c.id).where(ranked.c.position == 1).order_by(M.fee_type, M.unit, M.tier_min.asc())
         return [_to_entity(m) for m in (await self._s.execute(stmt)).scalars().all()]

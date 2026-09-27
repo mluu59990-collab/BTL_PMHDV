@@ -1,4 +1,4 @@
-"""Kết nối CSDL bất đồng bộ (SQLAlchemy 2.0 async + asyncpg)."""
+"""Kết nối CSDL bất đồng bộ (SQLAlchemy 2.0 async + asyncmy)."""
 from collections.abc import AsyncIterator
 
 from sqlalchemy import text
@@ -11,8 +11,12 @@ settings = get_settings()
 engine = create_async_engine(
     settings.database_url,
     echo=settings.db_echo,
+    # Customer row locks serialize VIP enrollment; subsequent reads must see the
+    # previous holder's committed membership, not an earlier auth-read snapshot.
+    isolation_level="READ COMMITTED",
     pool_size=settings.db_pool_size,
     max_overflow=settings.db_max_overflow,
+    connect_args={"init_command": "SET time_zone = '+00:00'"},
     pool_pre_ping=True,  # tự bỏ connection chết
 )
 

@@ -1,10 +1,6 @@
--- =====================================================================
--- SEED DỮ LIỆU NỀN (chạy lại nhiều lần không bị trùng)
--- =====================================================================
+-- MySQL 8.0.16+ / InnoDB. Timestamps stored in UTC.
+SET time_zone = '+00:00';
 
--- ---------- Vai trò ---------------------------------------------------
--- 5 vai trò theo Master Plan (1.2) + PURCHASER theo SRS B.2.2.
--- Không cần PURCHASER thì: DELETE FROM roles WHERE code = 'PURCHASER';
 INSERT INTO roles (code, name, description) VALUES
     ('ADMIN',      'Admin',              'Toàn quyền hệ thống; cấu hình tỷ giá, biểu phí, danh mục dùng chung'),
     ('SALE',       'Sale / CSKH',        'Quản lý khách hàng phụ trách, đơn hàng, khiếu nại, kế hoạch doanh số'),
@@ -12,31 +8,22 @@ INSERT INTO roles (code, name, description) VALUES
     ('ACCOUNTANT', 'Kế toán',            'Theo dõi dòng tiền, công nợ, hóa đơn'),
     ('CUSTOMER',   'Khách hàng',         'Tạo yêu cầu đặt hàng, đặt cọc, theo dõi đơn hàng'),
     ('PURCHASER',  'Nhân viên Đặt hàng', 'Đặt mua hàng trên sàn TMĐT Trung Quốc, cập nhật MVĐ nội địa TQ')
-ON CONFLICT (code) DO NOTHING;
+ON DUPLICATE KEY UPDATE id = id;
 
--- ---------- Tỷ giá khởi tạo (số ví dụ trong SRS REQ-1.2) --------------
 INSERT INTO exchange_rates (currency_code, rate, note)
 SELECT v.currency_code, v.rate, 'Tỷ giá khởi tạo (seed)'
-FROM (VALUES ('CNY', 3920.0000), ('USD', 26500.0000)) AS v(currency_code, rate)
+FROM (SELECT 'CNY' AS currency_code, 3920.0000 AS rate
+UNION ALL SELECT 'USD', 26500.0000) AS v
 WHERE NOT EXISTS (SELECT 1 FROM exchange_rates);
 
--- ---------- Thang bảng phí MẪU ----------------------------------------
--- !!! SỐ LIỆU DƯỚI ĐÂY CHỈ LÀ VÍ DỤ ĐỂ TEST - sửa lại theo biểu phí thực tế
---     (qua API PATCH /fee-configs/{id} hoặc UPDATE trực tiếp) !!!
 INSERT INTO fee_configs (fee_type, description, value, unit, tier_min, tier_max)
-SELECT * FROM (VALUES
-    -- Phí mua hàng (%) theo giá trị đơn (VNĐ)
-    ('PURCHASE_SERVICE_FEE', 'Đơn dưới 10 triệu',        3.0000, 'PERCENT',          0::numeric,          10000000::numeric),
-    ('PURCHASE_SERVICE_FEE', 'Đơn từ 10 - dưới 50 triệu', 2.0000, 'PERCENT',   10000000::numeric,          50000000::numeric),
-    ('PURCHASE_SERVICE_FEE', 'Đơn từ 50 triệu',          1.0000, 'PERCENT',   50000000::numeric,                    NULL),
-    -- Phí vận chuyển quốc tế (đ/kg) theo cân nặng tính phí (kg)
-    ('INTL_SHIPPING_FEE',    'Dưới 100 kg',          25000.0000, 'VND_PER_KG',         0::numeric,            100::numeric),
-    ('INTL_SHIPPING_FEE',    'Từ 100 - dưới 500 kg', 22000.0000, 'VND_PER_KG',       100::numeric,            500::numeric),
-    ('INTL_SHIPPING_FEE',    'Từ 500 kg',            20000.0000, 'VND_PER_KG',       500::numeric,                  NULL),
-    -- Phí vận chuyển quốc tế theo khối (đ/m3)
-    ('INTL_SHIPPING_FEE',    'Hàng cồng kềnh tính theo m3', 4000000.0000, 'VND_PER_M3', NULL,                       NULL),
-    -- Phí kiểm đếm (đ/sản phẩm) và phí đóng gỗ (đ/kiện)
-    ('INSPECTION_FEE',       'Kiểm đếm cơ bản',          1000.0000, 'VND_PER_ITEM',    NULL,                       NULL),
-    ('WOODEN_CRATE_FEE',     'Đóng gỗ',                150000.0000, 'VND_PER_PACKAGE', NULL,                       NULL)
-) AS v(fee_type, description, value, unit, tier_min, tier_max)
+SELECT * FROM (SELECT 'PURCHASE_SERVICE_FEE' AS fee_type, 'Đơn dưới 10 triệu' AS description, 3.0000 AS value, 'PERCENT' AS unit, 0 AS tier_min, 10000000 AS tier_max
+UNION ALL SELECT 'PURCHASE_SERVICE_FEE', 'Đơn từ 10 - dưới 50 triệu', 2.0000, 'PERCENT', 10000000, 50000000
+UNION ALL SELECT 'PURCHASE_SERVICE_FEE', 'Đơn từ 50 triệu', 1.0000, 'PERCENT', 50000000, NULL
+UNION ALL SELECT 'INTL_SHIPPING_FEE', 'Dưới 100 kg', 25000.0000, 'VND_PER_KG', 0, 100
+UNION ALL SELECT 'INTL_SHIPPING_FEE', 'Từ 100 - dưới 500 kg', 22000.0000, 'VND_PER_KG', 100, 500
+UNION ALL SELECT 'INTL_SHIPPING_FEE', 'Từ 500 kg', 20000.0000, 'VND_PER_KG', 500, NULL
+UNION ALL SELECT 'INTL_SHIPPING_FEE', 'Hàng cồng kềnh tính theo m3', 4000000.0000, 'VND_PER_M3', NULL, NULL
+UNION ALL SELECT 'INSPECTION_FEE', 'Kiểm đếm cơ bản', 1000.0000, 'VND_PER_ITEM', NULL, NULL
+UNION ALL SELECT 'WOODEN_CRATE_FEE', 'Đóng gỗ', 150000.0000, 'VND_PER_PACKAGE', NULL, NULL) AS v
 WHERE NOT EXISTS (SELECT 1 FROM fee_configs);

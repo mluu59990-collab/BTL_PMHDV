@@ -6,7 +6,6 @@ from sqlalchemy import (
     BigInteger,
     Boolean,
     Date,
-    DateTime,
     ForeignKey,
     Numeric,
     SmallInteger,
@@ -17,6 +16,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 from app.core.clock import utcnow
+from app.infrastructure.db.types import UTCDateTime
 
 
 class Base(DeclarativeBase):
@@ -42,11 +42,11 @@ class UserModel(Base):
     phone: Mapped[str | None] = mapped_column(String(20))
     password_hash: Mapped[str] = mapped_column(String(255))
     role_id: Mapped[int] = mapped_column(ForeignKey("roles.id"))
-    balance: Mapped[Decimal] = mapped_column(Numeric(18, 2), default=Decimal("0"))
+    balance: Mapped[Decimal] = mapped_column(Numeric(18, 2), default=Decimal(0))
     status: Mapped[str] = mapped_column(String(20), default="ACTIVE")
-    last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, server_default=func.now())
+    last_login_at: Mapped[datetime | None] = mapped_column(UTCDateTime())
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow, server_default=func.now())
 
     # lazy="joined": luôn JOIN roles khi đọc user (async không lazy-load được)
     role: Mapped[RoleModel] = relationship(lazy="joined")
@@ -58,9 +58,9 @@ class RefreshTokenModel(Base):
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     jti: Mapped[str] = mapped_column(String(64), unique=True)
-    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, server_default=func.now())
+    expires_at: Mapped[datetime] = mapped_column(UTCDateTime())
+    revoked_at: Mapped[datetime | None] = mapped_column(UTCDateTime())
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow, server_default=func.now())
 
 
 class ExchangeRateModel(Base):
@@ -71,7 +71,7 @@ class ExchangeRateModel(Base):
     rate: Mapped[Decimal] = mapped_column(Numeric(18, 4))
     note: Mapped[str | None] = mapped_column(String(255))
     created_by: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow, server_default=func.now())
 
 
 class FeeConfigModel(Base):
@@ -87,5 +87,5 @@ class FeeConfigModel(Base):
     effective_date: Mapped[date] = mapped_column(Date)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_by: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow, server_default=func.now())

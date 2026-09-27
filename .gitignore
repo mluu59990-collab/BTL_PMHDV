@@ -9,3 +9,9 @@ __pycache__/
 htmlcov/
 *.db
 .DS_Store
+# Local Postman runtime exports may contain credentials.
+reports/**/newman.private.json
+reports/**/server.log
+reports/**/newman.log
+.env.*
+!.env.example

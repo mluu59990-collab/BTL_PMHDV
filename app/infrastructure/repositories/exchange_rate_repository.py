@@ -39,12 +39,11 @@ class SqlExchangeRateRepository(ExchangeRateRepository):
         return _to_entity(m) if m else None
 
     async def list_latest_all(self) -> list[ExchangeRate]:
-        # DISTINCT ON (PostgreSQL): mỗi currency_code giữ đúng dòng mới nhất
-        stmt = (
-            select(M)
-            .distinct(M.currency_code)
-            .order_by(M.currency_code, M.created_at.desc(), M.id.desc())
-        )
+        ranked = select(M.id, func.row_number().over(
+            partition_by=M.currency_code,
+            order_by=(M.created_at.desc(), M.id.desc()),
+        ).label("position")).subquery()
+        stmt = select(M).join(ranked, M.id == ranked.c.id).where(ranked.c.position == 1).order_by(M.currency_code)
         return [_to_entity(m) for m in (await self._s.execute(stmt)).scalars().all()]
 
     async def list_history(

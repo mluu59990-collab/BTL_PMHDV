@@ -39,10 +39,9 @@ class SqlRefreshTokenRepository(RefreshTokenRepository):
             update(RefreshTokenModel)
             .where(RefreshTokenModel.jti == jti, RefreshTokenModel.revoked_at.is_(None))
             .values(revoked_at=utcnow())
-            .returning(RefreshTokenModel.id)
             .execution_options(synchronize_session=False)
         )
-        return (await self._s.execute(stmt)).first() is not None
+        return (await self._s.execute(stmt)).rowcount == 1
 
     async def revoke_all_for_user(self, user_id: int) -> None:
         stmt = (

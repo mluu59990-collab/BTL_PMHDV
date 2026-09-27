@@ -35,6 +35,8 @@ class UserService:
         email: str | None = None,
         phone: str | None = None,
     ) -> User:
+        if not full_name.strip():
+            raise BusinessRuleError("Họ tên không được để trống")
         username = username.strip().lower()
         await self._ensure_username_free(username)
         if email:

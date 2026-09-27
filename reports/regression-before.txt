@@ -1,0 +1,28 @@
+.......................................FF                                [100%]
+=================================== FAILURES ===================================
+_________________________ test_care_must_start_at_new __________________________
+tests/test_crm.py:63: in test_care_must_start_at_new
+    assert response.status_code == 422, response.text
+E   AssertionError: {"id":2,"is_active":true,"created_at":"2026-09-27T15:09:41.634546Z","updated_at":"2026-09-27T15:09:41.634550Z","customer_id":4,"title":"Chưa liên hệ","due_on":"2026-10-01","status":"COMPLETED","note":null}
+E   assert 201 == 422
+E    +  where 201 = <Response [201 Created]>.status_code
+__________________ test_registration_rejects_whitespace_name ___________________
+tests/test_crm.py:68: in test_registration_rejects_whitespace_name
+    assert response.status_code == 422, response.text
+E   AssertionError: {"id":12,"username":"blank_da58cbb3b19f","email":null,"full_name":"","phone":null,"role":"CUSTOMER","balance":"0","status":"ACTIVE","last_login_at":null,"created_at":"2026-09-27T15:09:41.889164Z"}
+E   assert 201 == 422
+E    +  where 201 = <Response [201 Created]>.status_code
+=============================== warnings summary ===============================
+.venv/lib/python3.13/site-packages/fastapi/testclient.py:1
+  /Users/Kì 1 năm 4/Phát triển PM hướng DV/BTL/.venv/lib/python3.13/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+.venv/lib/python3.13/site-packages/starlette/testclient.py:53
+  /Users/Kì 1 năm 4/Phát triển PM hướng DV/BTL/.venv/lib/python3.13/site-packages/starlette/testclient.py:53: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_crm.py::test_care_must_start_at_new - AssertionError: {"id"...
+FAILED tests/test_crm.py::test_registration_rejects_whitespace_name - Asserti...
+2 failed, 39 passed, 2 warnings in 4.26s

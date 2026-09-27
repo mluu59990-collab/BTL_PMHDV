@@ -1,21 +1,14 @@
-"""Integration tests use a disposable database, never the application's database.
-
-TEST_DATABASE_URL must point to a PostgreSQL maintenance database whose user has
-CREATEDB permission. Each run creates and drops its own cms_test_<uuid> database.
-"""
+"""Each run creates a random MySQL database and drops only that database."""
 
 import asyncio
 import os
 import secrets
 import uuid
-from pathlib import Path
-
-import asyncpg
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.engine import make_url
-
-ROOT = Path(__file__).resolve().parents[1]
+from sqlalchemy.ext.asyncio import create_async_engine
+from app.infrastructure.db.bootstrap import apply_sql
 
 
 @pytest.fixture(scope="session")
@@ -23,46 +16,40 @@ def client():
     maintenance = os.getenv("TEST_DATABASE_URL")
     if not maintenance:
         pytest.skip(
-            "Set TEST_DATABASE_URL to a PostgreSQL database with CREATEDB permission"
+            "Set TEST_DATABASE_URL to a MySQL URL with CREATE DATABASE permission"
         )
-    base_url = make_url(maintenance).set(drivername="postgresql")
+    base_url = make_url(maintenance).set(drivername="mysql+asyncmy", database="")
     database_name = "cms_test_" + uuid.uuid4().hex
     test_url = base_url.set(database=database_name)
 
     async def prepare():
-        conn = await asyncpg.connect(base_url.render_as_string(hide_password=False))
+        admin = create_async_engine(base_url, isolation_level="AUTOCOMMIT")
         try:
-            await conn.execute(f'CREATE DATABASE "{database_name}"')
+            async with admin.connect() as conn:
+                await conn.exec_driver_sql(
+                    f"CREATE DATABASE `{database_name}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
+                )
         finally:
-            await conn.close()
-        conn = await asyncpg.connect(test_url.render_as_string(hide_password=False))
+            await admin.dispose()
+        engine = create_async_engine(test_url)
         try:
-            for path in sorted((ROOT / "sql").glob("*.sql")):
-                await conn.execute(path.read_text())
-            # Verify that incremental migrations and seeds can be applied twice.
-            for name in ("04_catalog_schema.sql", "05_catalog_seed.sql"):
-                await conn.execute((ROOT / "sql" / name).read_text())
+            await apply_sql(engine, dev_users=True)
+            await apply_sql(engine, dev_users=True)  # repeat migration and seed safety
         finally:
-            await conn.close()
+            await engine.dispose()
 
     async def cleanup():
-        conn = await asyncpg.connect(base_url.render_as_string(hide_password=False))
+        admin = create_async_engine(base_url, isolation_level="AUTOCOMMIT")
         try:
-            await conn.execute(
-                f'DROP DATABASE IF EXISTS "{database_name}" WITH (FORCE)'
-            )
+            async with admin.connect() as conn:
+                await conn.exec_driver_sql(f"DROP DATABASE IF EXISTS `{database_name}`")
         finally:
-            await conn.close()
+            await admin.dispose()
 
     try:
         asyncio.run(prepare())
         with pytest.MonkeyPatch.context() as patch:
-            patch.setenv(
-                "DATABASE_URL",
-                test_url.set(drivername="postgresql+asyncpg").render_as_string(
-                    hide_password=False
-                ),
-            )
+            patch.setenv("DATABASE_URL", test_url.render_as_string(hide_password=False))
             patch.setenv("JWT_SECRET_KEY", secrets.token_urlsafe(48))
             patch.setenv("DEBUG", "false")
             from app.main import app

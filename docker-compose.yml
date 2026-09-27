@@ -1,23 +1,21 @@
-# Chỉ chạy PostgreSQL. Các file trong ./sql tự chạy ở LẦN ĐẦU khởi tạo volume.
-# Muốn chạy lại SQL từ đầu:  docker compose down -v && docker compose up -d
+# Optional MySQL for development; existing local MySQL can be used via .env.
 services:
   db:
-    image: postgres:16-alpine
-    container_name: cms_postgres
+    image: mysql:8.4
     environment:
-      POSTGRES_USER: cms
-      POSTGRES_PASSWORD: cms
-      POSTGRES_DB: cms_nguonhang1688
+      MYSQL_DATABASE: cms_nguonhang1688
+      MYSQL_USER: cms
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-cms}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-local-dev-root}
     ports:
-      - "5432:5432"   # đã có Postgres khác chiếm 5432 thì đổi thành "5433:5432" và sửa DATABASE_URL
+      - "3307:3306"
     volumes:
-      - cms_pgdata:/var/lib/postgresql/data
+      - cms_mysqldata:/var/lib/mysql
       - ./sql:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U cms -d cms_nguonhang1688"]
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost --silent"]
       interval: 5s
       timeout: 3s
-      retries: 10
-
+      retries: 20
 volumes:
-  cms_pgdata:
+  cms_mysqldata:

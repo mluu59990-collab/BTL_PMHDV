@@ -13,8 +13,8 @@ class Settings(BaseSettings):
     api_v1_prefix: str = "/api/v1"
     debug: bool = False
 
-    # Kết nối DB bất đồng bộ (driver asyncpg)
-    database_url: str = "postgresql+asyncpg://cms:cms@localhost:5432/cms_nguonhang1688"
+    # Kết nối DB bất đồng bộ (driver asyncmy)
+    database_url: str = "mysql+asyncmy://cms:cms@127.0.0.1:3306/cms_nguonhang1688"
     db_pool_size: int = 10
     db_max_overflow: int = 20
     db_echo: bool = False
