@@ -17,7 +17,7 @@ Postman / Frontend → Gateway :8000 → BE :8001 → MySQL :3306
 ## Chạy lần đầu
 
 1. Bật MySQL. Chạy `sql/my_db_logistic.sql` để tạo database và dữ liệu dev. Nếu muốn thêm dữ liệu thực hành, chạy `sql/data.sql` (xem nội dung trước khi chạy lại).
-2. Chạy toàn bộ `sql/05_procedures.sql` trong MySQL Workbench để tạo các thủ tục mà BE cần.
+2. Chạy lần lượt các file `sql/05_procedures.sql` → `06_auth_sessions.sql` → `07_rbac.sql` → `08_exchange_rates.sql` → `09_fee_configs.sql` trong MySQL Workbench. Các file bổ sung bảng và thủ tục cho đăng ký, JWT/RBAC, tỷ giá và bảng phí; không xóa dữ liệu nghiệp vụ.
 3. Tạo môi trường riêng và cài thư viện trong mỗi thư mục:
 
 ```bash
@@ -56,3 +56,5 @@ Từ thư mục Gateway:
 ```
 
 Bộ integration dùng DB giả lập để kiểm tra luồng Gateway → BE; không thay thế việc test MySQL thật. Nếu chỉ cài requirements.txt cho BE, cài thêm requirements-dev.txt trước khi chạy integration test.
+
+API Buổi 1 mới: [hướng dẫn endpoint và dữ liệu mẫu](docs/API_BUOI_1.md). Kiểm thử MySQL thật: `BE/checks/run_features.py --env /đường/dẫn/BE/.env`.

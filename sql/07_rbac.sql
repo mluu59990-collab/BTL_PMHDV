@@ -1,7 +1,8 @@
 USE cms_logistics_core;
 CREATE TABLE IF NOT EXISTS config_locks (name VARCHAR(50) PRIMARY KEY)
 ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-INSERT IGNORE INTO config_locks(name) VALUES('USER_PERMISSIONS');
+INSERT INTO config_locks(name) VALUES('USER_PERMISSIONS')
+ON DUPLICATE KEY UPDATE name=config_locks.name;
 DELIMITER $$
 DROP PROCEDURE IF EXISTS sp_get_users_page$$
 CREATE PROCEDURE sp_get_users_page(IN p_limit INT, IN p_offset INT)

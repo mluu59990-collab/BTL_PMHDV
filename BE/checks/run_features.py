@@ -49,13 +49,16 @@ async def main(env):
     backend_engine=None
     try:
         async with db.begin() as conn:
+            await conn.exec_driver_sql('SET sql_notes=0')
             source=(ROOT/'sql/my_db_logistic.sql').read_text()
             for statement in re.findall(r'CREATE TABLE IF NOT EXISTS.*?;',source,re.S):
                 await conn.exec_driver_sql(statement)
             seed=re.search(r'INSERT INTO users .*?;',source,re.S).group()
             await conn.exec_driver_sql(seed)
-            for path in sorted((ROOT/'sql').glob('[0-9][0-9]_*.sql')):
-                for statement in sql_statements(path): await conn.exec_driver_sql(statement)
+            # Áp dụng migrations hai lần để kiểm tra chạy lại không lỗi.
+            for _ in range(2):
+                for path in sorted((ROOT/'sql').glob('[0-9][0-9]_*.sql')):
+                    for statement in sql_statements(path): await conn.exec_driver_sql(statement)
         from app.main import app as backend
         from app.infrastructure.db.session import engine as backend_engine
         from gateway_app.app import create_app
@@ -101,7 +104,7 @@ async def main(env):
                 await check('GET','/users',200,headers=admin_headers)
                 async with httpx.AsyncClient(transport=httpx.ASGITransport(app=backend),base_url='http://backend') as direct:
                     assert (await direct.get('/users',headers=admin_headers)).status_code==403
-                # Rotation, rejeu, logout et séparation access/refresh.
+                # Xoay vòng, dùng lại token, đăng xuất và phân biệt loại token.
                 response=await check('POST','/auth/refresh',200,json={'refresh_token':customer_tokens['refresh_token']})
                 rotated=response.json()
                 assert rotated['refresh_token'] != customer_tokens['refresh_token']
@@ -112,7 +115,7 @@ async def main(env):
                 await check('POST','/auth/logout',204,json={'refresh_token':rotated['refresh_token']})
                 await check('POST','/auth/logout',204,json={'refresh_token':rotated['refresh_token']})
                 await check('POST','/auth/refresh',401,json={'refresh_token':rotated['refresh_token']})
-                # Deux refresh concurrents: un seul gagne, transaction atomique.
+                # Hai refresh đồng thời: chỉ một request thắng, transaction nguyên tử.
                 responses=await asyncio.gather(*[client.post('/auth/refresh',json={'refresh_token':admin_tokens['refresh_token']}) for _ in range(2)])
                 assert sorted(r.status_code for r in responses)==[200,401]
                 count+=2
@@ -166,6 +169,48 @@ async def main(env):
                 await check('GET','/exchange-rates/history?date_from=2026-10-02T00:00:00Z&date_to=2026-10-01T00:00:00Z',422,headers=admin_headers)
                 response=await check('GET','/exchange-rates/history?limit=1&offset=1',200,headers=admin_headers)
                 assert len(response.json()['items'])==1
+                # Bảng phí có phiên bản, khoảng [min,max), bậc cuối không giới hạn.
+                fees=dict(fee_type='INTERNATIONAL_SHIPPING',unit='VND_PER_KG',effective_date='2026-01-01',
+                          tiers=[{'tier_min':'0','tier_max':'10','value':'30000'},
+                                 {'tier_min':'10','tier_max':None,'value':'25000'}])
+                response=await check('POST','/fee-configs',201,headers=admin_headers,json=fees)
+                fee_id=response.json()['id']
+                assert response.json()['tiers'][1]['value']=='25000.0000'
+                await check('GET',f'/fee-configs/{fee_id}',200,headers=customer_headers)
+                newer={**fees,'effective_date':'2026-02-01','tiers':[{'tier_min':'0','tier_max':None,'value':'29000.1234'}]}
+                response=await check('POST','/fee-configs',201,headers=admin_headers,json=newer)
+                newer_id=response.json()['id']
+                response=await check('GET','/fee-configs/current?on_date=2026-01-15',200,headers=customer_headers)
+                assert response.json()[0]['id']==fee_id
+                response=await check('GET','/fee-configs/current?on_date=2026-02-01',200,headers=customer_headers)
+                assert response.json()[0]['id']==newer_id
+                response=await check('GET','/fee-configs/current?on_date=2025-12-31',200,headers=customer_headers)
+                assert response.json()==[]
+                for unit in ['PERCENT','VND','VND_PER_M3','VND_PER_ITEM','VND_PER_PACKAGE']:
+                    await check('POST','/fee-configs',201,headers=admin_headers,json={**fees,'fee_type':'TEST_'+unit,'unit':unit,'tiers':[{'tier_min':'0','value':'3.5000'}]})
+                invalid_tiers=[[],[{'tier_min':'0','tier_max':'10','value':'1'},{'tier_min':'9','value':'1'}],
+                               [{'tier_min':'0','value':'1'},{'tier_min':'20','value':'2'}],
+                               [{'tier_min':'10','tier_max':'10','value':'1'}],
+                               [{'tier_min':'-1','value':'1'}],[{'tier_min':'0','value':'-1'}]]
+                for tiers in invalid_tiers:
+                    await check('POST','/fee-configs',422,headers=admin_headers,json={**fees,'tiers':tiers})
+                await check('POST','/fee-configs',422,headers=admin_headers,json={**fees,'unit':'PERCENT','tiers':[{'value':'100.1'}]})
+                for role,tokens in role_tokens.items():
+                    headers={'Authorization':'Bearer '+tokens['access_token']}
+                    await check('GET','/fee-configs/current',200,headers=headers)
+                    if role!='ADMIN':
+                        await check('POST','/fee-configs',403,headers=headers,json=fees)
+                        await check('PATCH',f'/fee-configs/{fee_id}',403,headers=headers,json={'is_active':False})
+                await check('PATCH',f'/fee-configs/{fee_id}',422,headers=admin_headers,json={'tiers':[]})
+                await check('PATCH','/fee-configs/999999',404,headers=admin_headers,json={'is_active':False})
+                await check('PATCH',f'/fee-configs/{newer_id}',200,headers=admin_headers,json={'description':'Biểu phí mới'})
+                await check('DELETE',f'/fee-configs/{newer_id}',204,headers=admin_headers)
+                response=await check('GET',f'/fee-configs/{newer_id}',200,headers=admin_headers)
+                assert response.json()['is_active'] is False
+                response=await check('GET','/fee-configs/current?fee_type=INTERNATIONAL_SHIPPING&on_date=2026-02-01',200,headers=admin_headers)
+                assert response.json()[0]['id']==fee_id
+                response=await check('GET','/fee-configs?active_only=false&fee_type=INTERNATIONAL_SHIPPING',200,headers=admin_headers)
+                assert len(response.json()['items'])==2
                 # FEATURE_CHECKS: Các kiểm thử chức năng tiếp theo được bổ sung tại đây.
         print(f'PASS: {count} HTTP checks qua Gateway + MySQL thật; chặn gọi trực tiếp BE.')
     finally:

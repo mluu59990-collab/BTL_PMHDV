@@ -1,7 +1,8 @@
 {
   "info": {
     "name": "Logistics Gateway — Buổi 1",
-    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Chạy 1 iteration trên DB dev. Tạo tài khoản/tỷ giá/bảng phí mẫu, sửa quyền tài khoản mới; bảng phí mẫu được xóa mềm."
   },
   "variable": [
     {
@@ -10,12 +11,17 @@
       "type": "string"
     },
     {
+      "key": "backend_url",
+      "value": "http://127.0.0.1:8001",
+      "type": "string"
+    },
+    {
       "key": "admin_password",
       "value": "Admin@123456",
       "type": "string"
     },
     {
-      "key": "sale_password",
+      "key": "staff_password",
       "value": "Test@123456",
       "type": "string"
     },
@@ -23,15 +29,30 @@
       "key": "access_token",
       "value": "",
       "type": "string"
+    },
+    {
+      "key": "refresh_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "user_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "fee_id",
+      "value": "",
+      "type": "string"
     }
   ],
   "item": [
     {
-      "name": "01 Gateway health",
+      "name": "01 Gateway hoạt động",
       "request": {
         "method": "GET",
-        "header": [],
         "url": "{{base_url}}/gateway/health",
+        "header": [],
         "auth": {
           "type": "noauth"
         }
@@ -49,11 +70,11 @@
       ]
     },
     {
-      "name": "02 Backend + DB health",
+      "name": "02 Backend và DB hoạt động",
       "request": {
         "method": "GET",
-        "header": [],
         "url": "{{base_url}}/health",
+        "header": [],
         "auth": {
           "type": "noauth"
         }
@@ -71,11 +92,11 @@
       ]
     },
     {
-      "name": "03 Users without token",
+      "name": "03 Từ chối thiếu token",
       "request": {
         "method": "GET",
-        "header": [],
         "url": "{{base_url}}/users",
+        "header": [],
         "auth": {
           "type": "noauth"
         }
@@ -93,16 +114,149 @@
       ]
     },
     {
-      "name": "04 Login admin",
+      "name": "04 Từ chối gọi thẳng BE",
+      "request": {
+        "method": "GET",
+        "url": "{{backend_url}}/users",
+        "header": [],
+        "auth": {
+          "type": "noauth"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 403\", () => pm.response.to.have.status(403));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 Đăng ký khách mới",
       "request": {
         "method": "POST",
+        "url": "{{base_url}}/auth/register",
         "header": [
           {
             "key": "Content-Type",
             "value": "application/json"
           }
         ],
+        "auth": {
+          "type": "noauth"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"khach_{{$guid}}\",\n  \"password\": \"Strong@123456\",\n  \"full_name\": \"Khách kiểm thử\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+              "if (pm.response.code === 201) { const d = pm.response.json();",
+              "pm.collectionVariables.set(\"user_id\", d.id);",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "06 Chặn tự chọn ADMIN khi đăng ký",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/auth/register",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "auth": {
+          "type": "noauth"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"khach_{{$guid}}\",\n  \"password\": \"Strong@123456\",\n  \"full_name\": \"Khách\",\n  \"role\": \"ADMIN\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 422\", () => pm.response.to.have.status(422));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "07 Sai mật khẩu",
+      "request": {
+        "method": "POST",
         "url": "{{base_url}}/auth/login",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "auth": {
+          "type": "noauth"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"wrong-password\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 401\", () => pm.response.to.have.status(401));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "08 Đăng nhập ADMIN",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/auth/login",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
         "auth": {
           "type": "noauth"
         },
@@ -122,21 +276,22 @@
           "script": {
             "type": "text/javascript",
             "exec": [
-              "pm.collectionVariables.unset(\"access_token\");",
               "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
-              "if (pm.response.code === 200) { pm.collectionVariables.set(\"access_token\", pm.response.json().access_token); }",
-              "if (pm.response.code === 200) pm.collectionVariables.set(\"refresh_token\", pm.response.json().refresh_token);"
+              "if (pm.response.code === 200) { const d = pm.response.json();",
+              "pm.collectionVariables.set(\"access_token\", d.access_token);",
+              "pm.collectionVariables.set(\"refresh_token\", d.refresh_token);",
+              "}"
             ]
           }
         }
       ]
     },
     {
-      "name": "05 Current user",
+      "name": "09 Thông tin hiện tại",
       "request": {
         "method": "GET",
-        "header": [],
         "url": "{{base_url}}/auth/me",
+        "header": [],
         "auth": {
           "type": "bearer",
           "bearer": [
@@ -161,11 +316,11 @@
       ]
     },
     {
-      "name": "06 Users as admin",
+      "name": "10 Quyền hiện tại",
       "request": {
         "method": "GET",
+        "url": "{{base_url}}/auth/permissions",
         "header": [],
-        "url": "{{base_url}}/users",
         "auth": {
           "type": "bearer",
           "bearer": [
@@ -190,137 +345,11 @@
       ]
     },
     {
-      "name": "07 Wrong password",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          }
-        ],
-        "url": "{{base_url}}/auth/login",
-        "auth": {
-          "type": "noauth"
-        },
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"incorrect-password\"\n}",
-          "options": {
-            "raw": {
-              "language": "json"
-            }
-          }
-        }
-      },
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.test(\"HTTP 401\", () => pm.response.to.have.status(401));"
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "name": "08 Invalid token",
+      "name": "11 Danh sách người dùng",
       "request": {
         "method": "GET",
+        "url": "{{base_url}}/users?limit=10&offset=0",
         "header": [],
-        "url": "{{base_url}}/users",
-        "auth": {
-          "type": "bearer",
-          "bearer": [
-            {
-              "key": "token",
-              "value": "invalid-token",
-              "type": "string"
-            }
-          ]
-        }
-      },
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.test(\"HTTP 401\", () => pm.response.to.have.status(401));"
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "name": "09 Direct backend blocked",
-      "request": {
-        "method": "GET",
-        "header": [],
-        "url": "http://127.0.0.1:8001/users",
-        "auth": {
-          "type": "noauth"
-        }
-      },
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.test(\"HTTP 403\", () => pm.response.to.have.status(403));"
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "name": "10 Login sale",
-      "request": {
-        "method": "POST",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          }
-        ],
-        "url": "{{base_url}}/auth/login",
-        "auth": {
-          "type": "noauth"
-        },
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"username\": \"sale01\",\n  \"password\": \"{{sale_password}}\"\n}",
-          "options": {
-            "raw": {
-              "language": "json"
-            }
-          }
-        }
-      },
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.collectionVariables.unset(\"access_token\");",
-              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
-              "if (pm.response.code === 200) { pm.collectionVariables.set(\"access_token\", pm.response.json().access_token); }",
-              "if (pm.response.code === 200) pm.collectionVariables.set(\"refresh_token\", pm.response.json().refresh_token);"
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "name": "11 Users as sale",
-      "request": {
-        "method": "GET",
-        "header": [],
-        "url": "{{base_url}}/users",
         "auth": {
           "type": "bearer",
           "bearer": [
@@ -338,29 +367,41 @@
           "script": {
             "type": "text/javascript",
             "exec": [
-              "pm.test(\"HTTP 403\", () => pm.response.to.have.status(403));"
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
             ]
           }
         }
       ]
     },
     {
-      "name": "Đăng ký khách hàng",
+      "name": "12 ADMIN phân quyền khách vừa tạo",
       "request": {
-        "method": "POST",
-        "url": "{{base_url}}/auth/register",
-        "auth": {
-          "type": "noauth"
-        },
+        "method": "PATCH",
+        "url": "{{base_url}}/users/{{user_id}}/access",
         "header": [
           {
             "key": "Content-Type",
             "value": "application/json"
           }
         ],
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{access_token}}",
+              "type": "string"
+            }
+          ]
+        },
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"username\": \"khach_{{$timestamp}}\",\n  \"password\": \"Strong@123456\",\n  \"full_name\": \"Khách hàng mới\"\n}"
+          "raw": "{\n  \"role\": \"SALE\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
         }
       },
       "event": [
@@ -369,29 +410,41 @@
           "script": {
             "type": "text/javascript",
             "exec": [
-              "pm.test(\"Đăng ký thành công\", () => pm.response.to.have.status(201));"
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
             ]
           }
         }
       ]
     },
     {
-      "name": "Làm mới token",
+      "name": "13 Cập nhật tỷ giá NDT",
       "request": {
         "method": "POST",
-        "url": "{{base_url}}/auth/refresh",
-        "auth": {
-          "type": "noauth"
-        },
+        "url": "{{base_url}}/exchange-rates",
         "header": [
           {
             "key": "Content-Type",
             "value": "application/json"
           }
         ],
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{access_token}}",
+              "type": "string"
+            }
+          ]
+        },
         "body": {
           "mode": "raw",
-          "raw": "{\"refresh_token\":\"{{refresh_token}}\"}"
+          "raw": "{\n  \"currency_code\": \"NDT\",\n  \"rate\": \"3920.1234\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
         }
       },
       "event": [
@@ -400,30 +453,361 @@
           "script": {
             "type": "text/javascript",
             "exec": [
-              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
-              "if (pm.response.code === 200) { const d = pm.response.json(); pm.collectionVariables.set(\"access_token\", d.access_token); pm.collectionVariables.set(\"refresh_token\", d.refresh_token); }"
+              "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));"
             ]
           }
         }
       ]
     },
     {
-      "name": "Đăng xuất",
+      "name": "14 Cập nhật tỷ giá USD",
       "request": {
         "method": "POST",
-        "url": "{{base_url}}/auth/logout",
-        "auth": {
-          "type": "noauth"
-        },
+        "url": "{{base_url}}/exchange-rates",
         "header": [
           {
             "key": "Content-Type",
             "value": "application/json"
           }
         ],
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{access_token}}",
+              "type": "string"
+            }
+          ]
+        },
         "body": {
           "mode": "raw",
-          "raw": "{\"refresh_token\":\"{{refresh_token}}\"}"
+          "raw": "{\n  \"currency_code\": \"USD\",\n  \"rate\": \"26500\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "15 Tỷ giá hiện hành",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/exchange-rates/current",
+        "header": [],
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{access_token}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "16 Lịch sử tỷ giá CNY",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/exchange-rates/history?currency_code=CNY",
+        "header": [],
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{access_token}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "17 Chặn tỷ giá âm",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/exchange-rates",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{access_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"currency_code\": \"USD\",\n  \"rate\": \"-1\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 422\", () => pm.response.to.have.status(422));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "18 Tạo bảng phí vận chuyển",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/fee-configs",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{access_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"fee_type\": \"INTERNATIONAL_SHIPPING\",\n  \"unit\": \"VND_PER_KG\",\n  \"effective_date\": \"2026-01-01\",\n  \"tiers\": [\n    {\n      \"tier_min\": \"0\",\n      \"tier_max\": \"10\",\n      \"value\": \"30000\"\n    },\n    {\n      \"tier_min\": \"10\",\n      \"tier_max\": null,\n      \"value\": \"25000\"\n    }\n  ]\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+              "if (pm.response.code === 201) { const d = pm.response.json();",
+              "pm.collectionVariables.set(\"fee_id\", d.id);",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "19 Chi tiết bảng phí",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/fee-configs/{{fee_id}}",
+        "header": [],
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{access_token}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "20 Bảng phí hiện hành",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/fee-configs/current?fee_type=INTERNATIONAL_SHIPPING",
+        "header": [],
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{access_token}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "21 Chặn bậc phí chồng lấn",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/fee-configs",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{access_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"fee_type\": \"INTERNATIONAL_SHIPPING\",\n  \"unit\": \"VND_PER_KG\",\n  \"effective_date\": \"2026-01-01\",\n  \"tiers\": [\n    {\n      \"tier_min\": \"0\",\n      \"tier_max\": \"10\",\n      \"value\": \"1\"\n    },\n    {\n      \"tier_min\": \"9\",\n      \"value\": \"1\"\n    }\n  ]\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 422\", () => pm.response.to.have.status(422));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "22 Sửa mô tả bảng phí",
+      "request": {
+        "method": "PATCH",
+        "url": "{{base_url}}/fee-configs/{{fee_id}}",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{access_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"description\": \"Bảng phí test Postman\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "23 Xóa mềm bảng phí vừa tạo",
+      "request": {
+        "method": "DELETE",
+        "url": "{{base_url}}/fee-configs/{{fee_id}}",
+        "header": [],
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{access_token}}",
+              "type": "string"
+            }
+          ]
         }
       },
       "event": [
@@ -439,10 +823,11 @@
       ]
     },
     {
-      "name": "Xem quyền của tài khoản",
+      "name": "24 Lịch sử bảng phí",
       "request": {
         "method": "GET",
-        "url": "{{base_url}}/auth/permissions",
+        "url": "{{base_url}}/fee-configs?active_only=false",
+        "header": [],
         "auth": {
           "type": "bearer",
           "bearer": [
@@ -452,69 +837,178 @@
               "type": "string"
             }
           ]
-        },
-        "header": []
-      }
-    },
-    {
-      "name": "ADMIN cập nhật quyền tài khoản",
-      "request": {
-        "method": "PATCH",
-        "url": "{{base_url}}/users/{{user_id}}/access",
-        "auth": {
-          "type": "bearer",
-          "bearer": [
-            {
-              "key": "token",
-              "value": "{{access_token}}",
-              "type": "string"
-            }
-          ]
-        },
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\"role\": \"SALE\"}"
         }
-      }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
     },
     {
-      "name": "ADMIN cập nhật tỷ giá",
+      "name": "25 Refresh token",
       "request": {
         "method": "POST",
-        "url": "{{base_url}}/exchange-rates",
-        "auth": {
-          "type": "bearer",
-          "bearer": [
-            {
-              "key": "token",
-              "value": "{{access_token}}",
-              "type": "string"
-            }
-          ]
-        },
+        "url": "{{base_url}}/auth/refresh",
         "header": [
           {
             "key": "Content-Type",
             "value": "application/json"
           }
         ],
+        "auth": {
+          "type": "noauth"
+        },
         "body": {
           "mode": "raw",
-          "raw": "{\"currency_code\": \"CNY\", \"rate\": \"3920.1234\"}"
+          "raw": "{\n  \"refresh_token\": \"{{refresh_token}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
         }
-      }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "if (pm.response.code === 200) { const d = pm.response.json();",
+              "pm.collectionVariables.set(\"access_token\", d.access_token);",
+              "pm.collectionVariables.set(\"refresh_token\", d.refresh_token);",
+              "}"
+            ]
+          }
+        }
+      ]
     },
     {
-      "name": "Tra cứu tỷ giá hiện tại",
+      "name": "26 Đăng xuất",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/auth/logout",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "auth": {
+          "type": "noauth"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"refresh_token\": \"{{refresh_token}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 204\", () => pm.response.to.have.status(204));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "27 Không dùng lại refresh đã đăng xuất",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/auth/refresh",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "auth": {
+          "type": "noauth"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"refresh_token\": \"{{refresh_token}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 401\", () => pm.response.to.have.status(401));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Đăng nhập Sale",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/auth/login",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "auth": {
+          "type": "noauth"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"sale01\",\n  \"password\": \"{{staff_password}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "if (pm.response.code === 200) { const d = pm.response.json();",
+              "pm.collectionVariables.set(\"access_token\", d.access_token);",
+              "pm.collectionVariables.set(\"refresh_token\", d.refresh_token);",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Sale được đọc tỷ giá",
       "request": {
         "method": "GET",
         "url": "{{base_url}}/exchange-rates/current",
+        "header": [],
         "auth": {
           "type": "bearer",
           "bearer": [
@@ -524,15 +1018,31 @@
               "type": "string"
             }
           ]
-        },
-        "header": []
-      }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
     },
     {
-      "name": "Lịch sử tỷ giá CNY",
+      "name": "Sale không được cập nhật tỷ giá",
       "request": {
-        "method": "GET",
-        "url": "{{base_url}}/exchange-rates/history?currency_code=CNY",
+        "method": "POST",
+        "url": "{{base_url}}/exchange-rates",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
         "auth": {
           "type": "bearer",
           "bearer": [
@@ -543,8 +1053,623 @@
             }
           ]
         },
-        "header": []
-      }
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"currency_code\": \"CNY\",\n  \"rate\": \"1\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 403\", () => pm.response.to.have.status(403));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Sale không được xem users",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/users",
+        "header": [],
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{access_token}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 403\", () => pm.response.to.have.status(403));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Đăng xuất Sale",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/auth/logout",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "auth": {
+          "type": "noauth"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"refresh_token\": \"{{refresh_token}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 204\", () => pm.response.to.have.status(204));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Đăng nhập Kho",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/auth/login",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "auth": {
+          "type": "noauth"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"kho01\",\n  \"password\": \"{{staff_password}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "if (pm.response.code === 200) { const d = pm.response.json();",
+              "pm.collectionVariables.set(\"access_token\", d.access_token);",
+              "pm.collectionVariables.set(\"refresh_token\", d.refresh_token);",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Kho được đọc tỷ giá",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/exchange-rates/current",
+        "header": [],
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{access_token}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Kho không được cập nhật tỷ giá",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/exchange-rates",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{access_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"currency_code\": \"CNY\",\n  \"rate\": \"1\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 403\", () => pm.response.to.have.status(403));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Kho không được xem users",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/users",
+        "header": [],
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{access_token}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 403\", () => pm.response.to.have.status(403));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Đăng xuất Kho",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/auth/logout",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "auth": {
+          "type": "noauth"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"refresh_token\": \"{{refresh_token}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 204\", () => pm.response.to.have.status(204));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Đăng nhập Kế toán",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/auth/login",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "auth": {
+          "type": "noauth"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"ketoan01\",\n  \"password\": \"{{staff_password}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "if (pm.response.code === 200) { const d = pm.response.json();",
+              "pm.collectionVariables.set(\"access_token\", d.access_token);",
+              "pm.collectionVariables.set(\"refresh_token\", d.refresh_token);",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Kế toán được đọc tỷ giá",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/exchange-rates/current",
+        "header": [],
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{access_token}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Kế toán không được cập nhật tỷ giá",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/exchange-rates",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{access_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"currency_code\": \"CNY\",\n  \"rate\": \"1\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 403\", () => pm.response.to.have.status(403));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Kế toán không được xem users",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/users",
+        "header": [],
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{access_token}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 403\", () => pm.response.to.have.status(403));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Đăng xuất Kế toán",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/auth/logout",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "auth": {
+          "type": "noauth"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"refresh_token\": \"{{refresh_token}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 204\", () => pm.response.to.have.status(204));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Đăng nhập Khách hàng",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/auth/login",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "auth": {
+          "type": "noauth"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"khach01\",\n  \"password\": \"{{staff_password}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "if (pm.response.code === 200) { const d = pm.response.json();",
+              "pm.collectionVariables.set(\"access_token\", d.access_token);",
+              "pm.collectionVariables.set(\"refresh_token\", d.refresh_token);",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Khách hàng được đọc tỷ giá",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/exchange-rates/current",
+        "header": [],
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{access_token}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Khách hàng không được cập nhật tỷ giá",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/exchange-rates",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{access_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"currency_code\": \"CNY\",\n  \"rate\": \"1\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 403\", () => pm.response.to.have.status(403));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Khách hàng không được xem users",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/users",
+        "header": [],
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{access_token}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 403\", () => pm.response.to.have.status(403));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Đăng xuất Khách hàng",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/auth/logout",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "auth": {
+          "type": "noauth"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"refresh_token\": \"{{refresh_token}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 204\", () => pm.response.to.have.status(204));"
+            ]
+          }
+        }
+      ]
     }
   ]
 }

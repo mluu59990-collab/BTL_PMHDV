@@ -29,7 +29,7 @@ Khóa JWT và khóa gateway phải là hai khóa khác nhau, tối thiểu 32 k�
 
 ## 2. Cài stored procedure
 
-Mở `../sql/05_procedures.sql` trong MySQL Workbench, chạy toàn bộ trên `cms_logistics_core`. Sau đó chạy `../sql/06_auth_sessions.sql` để cài thủ tục phiên đăng nhập. File `05` tạo các thủ tục nền tảng:
+Mở `../sql/05_procedures.sql` trong MySQL Workbench, chạy toàn bộ trên `cms_logistics_core`. Sau đó chạy lần lượt `../sql/06_auth_sessions.sql`, `07_rbac.sql`, `08_exchange_rates.sql`, `09_fee_configs.sql` để cài phiên đăng nhập, phân quyền, tỷ giá và bảng phí. File `05` tạo các thủ tục nền tảng:
 
 - `sp_health`: kiểm tra DB.
 - `sp_get_user_for_login`: tìm tài khoản để xác thực.
@@ -60,26 +60,19 @@ Giữ cả hai Terminal mở. Dừng phiên BE cũ đang chiếm cổng 8000 tr�
 
 Import `postman/Logistics-Gateway.postman_collection.json`. Collection có biến `base_url=http://127.0.0.1:8000` và tự lưu token từ request đăng nhập thành `access_token`.
 
-Chạy lần lượt:
+Chọn collection → Run → Iterations **1**. Collection có 47 request và assertion HTTP, đi theo thứ tự:
 
-1. **Gateway health** — GET `/gateway/health`, No Auth → 200. Chỉ kiểm tra gateway.
-2. **Backend + DB health** — GET `/health`, No Auth → 200. Kiểm tra cả gateway, BE và DB.
-3. **Users without token** — GET `/users`, No Auth → 401.
-4. **Login admin** — POST `/auth/login`, No Auth; Body raw JSON:
+1. Health, chặn thiếu token/gọi thẳng BE.
+2. Đăng ký khách mới và thử chọn quyền trái phép.
+3. Đăng nhập ADMIN, xem tài khoản, phân quyền tài khoản vừa tạo.
+4. Cập nhật/tra cứu tỷ giá và kiểm tra dữ liệu sai.
+5. Tạo/tra cứu/cập nhật mô tả/xóa mềm bảng phí; thử bậc chồng lấn.
+6. Refresh, logout, thử dùng lại token đã thu hồi.
+7. Đăng nhập Sale, Kho, Kế toán, Khách hàng; xác nhận được đọc và bị chặn ghi.
 
-```json
-{"username":"admin","password":"Admin@123456"}
-```
+Collection tạo dữ liệu thực hành trong database đang chạy. Tài khoản mới có username ngẫu nhiên; không sửa quyền tài khoản có sẵn. Nếu đã đổi mật khẩu seed, sửa biến `admin_password` và `staff_password`. Các request lỗi mong đợi 401/403/422 vẫn là PASS.
 
-Kết quả 200, có `access_token`; Postman tự lưu biến.
-
-5. **Current user** — GET `/auth/me`, Bearer Token `{{access_token}}` → 200.
-6. **Users as admin** — GET `/users`, Bearer Token `{{access_token}}` → 200, không có password_hash.
-7. **Wrong password** → 401; **Invalid token** → 401.
-8. **Direct backend blocked** — GET `http://127.0.0.1:8001/users`, No Auth → 403.
-9. **Login sale** rồi **Users as sale** → đăng nhập 200, danh sách users 403.
-
-Tài khoản trên là tài khoản seed thực hành. Nếu bạn đã thay mật khẩu, sửa biến `admin_password`/`sale_password` của collection.
+API chi tiết và mẫu JSON: [docs/API_BUOI_1.md](../docs/API_BUOI_1.md).
 
 ## Cấu trúc và quy tắc
 
