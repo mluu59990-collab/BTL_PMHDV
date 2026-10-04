@@ -31,8 +31,11 @@ class Result:
     def mappings(self): return self
     def first(self): return self.rows[0] if self.rows else None
     def all(self): return self.rows
+    def one(self): return self.rows[0]
 
 class Session:
+    async def commit(self): pass
+    async def rollback(self): pass
     async def execute(self, statement, params=None):
         sql = str(statement)
         assert sql.startswith('CALL '), 'Chỉ gọi stored procedure'

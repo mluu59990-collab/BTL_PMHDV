@@ -124,7 +124,8 @@
             "exec": [
               "pm.collectionVariables.unset(\"access_token\");",
               "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
-              "if (pm.response.code === 200) { pm.collectionVariables.set(\"access_token\", pm.response.json().access_token); }"
+              "if (pm.response.code === 200) { pm.collectionVariables.set(\"access_token\", pm.response.json().access_token); }",
+              "if (pm.response.code === 200) pm.collectionVariables.set(\"refresh_token\", pm.response.json().refresh_token);"
             ]
           }
         }
@@ -307,7 +308,8 @@
             "exec": [
               "pm.collectionVariables.unset(\"access_token\");",
               "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
-              "if (pm.response.code === 200) { pm.collectionVariables.set(\"access_token\", pm.response.json().access_token); }"
+              "if (pm.response.code === 200) { pm.collectionVariables.set(\"access_token\", pm.response.json().access_token); }",
+              "if (pm.response.code === 200) pm.collectionVariables.set(\"refresh_token\", pm.response.json().refresh_token);"
             ]
           }
         }
@@ -368,6 +370,69 @@
             "type": "text/javascript",
             "exec": [
               "pm.test(\"Đăng ký thành công\", () => pm.response.to.have.status(201));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Làm mới token",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/auth/refresh",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"refresh_token\":\"{{refresh_token}}\"}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "if (pm.response.code === 200) { const d = pm.response.json(); pm.collectionVariables.set(\"access_token\", d.access_token); pm.collectionVariables.set(\"refresh_token\", d.refresh_token); }"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Đăng xuất",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/auth/logout",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"refresh_token\":\"{{refresh_token}}\"}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 204\", () => pm.response.to.have.status(204));"
             ]
           }
         }

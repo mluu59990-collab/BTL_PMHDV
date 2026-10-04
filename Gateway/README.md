@@ -29,7 +29,7 @@ Khóa JWT và khóa gateway phải là hai khóa khác nhau, tối thiểu 32 k�
 
 ## 2. Cài stored procedure
 
-Mở `../sql/05_procedures.sql` trong MySQL Workbench, chạy toàn bộ trên `cms_logistics_core`. File chỉ tạo lại bốn thủ tục, không sửa bảng hoặc dữ liệu:
+Mở `../sql/05_procedures.sql` trong MySQL Workbench, chạy toàn bộ trên `cms_logistics_core`. Sau đó chạy `../sql/06_auth_sessions.sql` để cài thủ tục phiên đăng nhập. File `05` tạo các thủ tục nền tảng:
 
 - `sp_health`: kiểm tra DB.
 - `sp_get_user_for_login`: tìm tài khoản để xác thực.
@@ -89,7 +89,7 @@ Tài khoản trên là tài khoản seed thực hành. Nếu bạn đã thay m�
 - `tests/test_gateway.py`: test xác thực, proxy và xử lý lỗi.
 - `integration/check_flow.py`: test xuyên gateway/BE với DB giả lập; chạy từ Gateway bằng `python integration/check_flow.py ../BE` sau khi cài requirements của BE vào môi trường test.
 
-Chỉ `POST /auth/login`, `POST /auth/register`, `GET /health` và health riêng gateway là công khai. API mới mặc định cần access token; token refresh không được dùng thay access token. Gateway không cấp JWT. BE cấp access token và kiểm tra lại token cùng trạng thái/vai trò trong DB. Chưa triển khai refresh/logout ở luồng mới.
+Chỉ `POST /auth/login`, `POST /auth/register`, `POST /auth/refresh`, `POST /auth/logout`, `GET /health` và health riêng gateway là công khai. API mới mặc định cần access token; token refresh không được dùng thay access token. Gateway không cấp JWT. BE cấp access token và kiểm tra lại token cùng trạng thái/vai trò trong DB. Đăng nhập trả access và refresh token. `POST /auth/refresh` xoay refresh token một lần; `POST /auth/logout` thu hồi refresh token, trả 204 kể cả token đã hết hạn. Access token đã phát vẫn dùng đến hạn, trừ khi tài khoản bị khóa. Hai endpoint này không yêu cầu access token.
 
 Gateway loại header danh tính do client tự gửi, tự thêm khóa nội bộ. BE kiểm tra khóa trên mọi request, kể cả health. Khi triển khai phải dùng HTTPS, giữ BE trong mạng nội bộ và giới hạn kết nối từ gateway; khóa dùng chung không thay thế kiểm soát mạng.
 

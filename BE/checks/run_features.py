@@ -101,6 +101,29 @@ async def main(env):
                 await check('GET','/users',200,headers=admin_headers)
                 async with httpx.AsyncClient(transport=httpx.ASGITransport(app=backend),base_url='http://backend') as direct:
                     assert (await direct.get('/users',headers=admin_headers)).status_code==403
+                # Rotation, rejeu, logout et séparation access/refresh.
+                response=await check('POST','/auth/refresh',200,json={'refresh_token':customer_tokens['refresh_token']})
+                rotated=response.json()
+                assert rotated['refresh_token'] != customer_tokens['refresh_token']
+                await check('POST','/auth/refresh',401,json={'refresh_token':customer_tokens['refresh_token']})
+                await check('POST','/auth/refresh',401,json={'refresh_token':customer_tokens['access_token']})
+                await check('GET','/users',401,headers={'Authorization':'Bearer '+rotated['refresh_token']})
+                await check('POST','/auth/refresh',401,json={'refresh_token':'invalid'})
+                await check('POST','/auth/logout',204,json={'refresh_token':rotated['refresh_token']})
+                await check('POST','/auth/logout',204,json={'refresh_token':rotated['refresh_token']})
+                await check('POST','/auth/refresh',401,json={'refresh_token':rotated['refresh_token']})
+                # Deux refresh concurrents: un seul gagne, transaction atomique.
+                responses=await asyncio.gather(*[client.post('/auth/refresh',json={'refresh_token':admin_tokens['refresh_token']}) for _ in range(2)])
+                assert sorted(r.status_code for r in responses)==[200,401]
+                count+=2
+                admin_tokens=next(r.json() for r in responses if r.status_code==200)
+                admin_headers={'Authorization':'Bearer '+admin_tokens['access_token']}
+                async with db.begin() as conn:
+                    await conn.execute(text("UPDATE users SET status='LOCKED' WHERE id=:id"),{'id':customer_id})
+                await check('GET','/auth/me',403,headers=customer_headers)
+                await check('POST','/auth/login',403,json={'username':body['username'],'password':body['password']})
+                async with db.begin() as conn:
+                    await conn.execute(text("UPDATE users SET status='ACTIVE' WHERE id=:id"),{'id':customer_id})
                 # FEATURE_CHECKS: Các kiểm thử chức năng tiếp theo được bổ sung tại đây.
         print(f'PASS: {count} HTTP checks qua Gateway + MySQL thật; chặn gọi trực tiếp BE.')
     finally:

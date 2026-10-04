@@ -3,7 +3,8 @@ from contextlib import asynccontextmanager
 import secrets
 
 from fastapi import Depends, FastAPI, HTTPException, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
+from sqlalchemy.exc import DBAPIError
 from pydantic import BaseModel, Field
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -83,10 +84,19 @@ async def login(body: LoginRequest, session: AsyncSession = Depends(get_session)
         raise HTTPException(401, 'Sai tên đăng nhập hoặc mật khẩu')
     if user['status'] != 'ACTIVE':
         raise HTTPException(403, 'Tài khoản không hoạt động')
-    access = token_provider.create_access_token(user_id=user['id'], role=user['role'])
-    return {'access_token': access.token, 'token_type': 'bearer',
-            'expires_in': settings.access_token_expire_minutes * 60,
-            'user': {key: user[key] for key in ('id', 'username', 'full_name', 'role')}}
+    refresh = token_provider.create_refresh_token(user_id=user['id'])
+    try:
+        result = await session.execute(text('CALL sp_create_session(:user_id,:jti,:expires)'),
+            {'user_id':user['id'],'jti':refresh.jti,'expires':refresh.expires_at.replace(tzinfo=None)})
+        user = dict(result.mappings().one())
+        await session.commit()
+    except DBAPIError as exc:
+        await session.rollback()
+        if exc.orig.args[0] == 1644:
+            raise HTTPException(403, 'Tài khoản không hoạt động') from None
+        raise
+    return token_response(user, refresh)
+
 
 
 @app.get('/auth/me')
@@ -139,3 +149,48 @@ async def register(body: RegisterRequest, session: AsyncSession = Depends(get_se
             raise HTTPException(409, 'Tên đăng nhập hoặc email đã tồn tại') from None
         raise
     return user
+
+
+def token_response(user, refresh):
+    access = token_provider.create_access_token(user_id=user['id'], role=user['role'])
+    return {'access_token':access.token, 'refresh_token':refresh.token, 'token_type':'bearer',
+            'expires_in':settings.access_token_expire_minutes*60,
+            'user':{key:user[key] for key in ('id','username','full_name','role')}}
+
+
+class RefreshRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    refresh_token: str = Field(min_length=1, max_length=4096)
+
+
+@app.post('/auth/refresh')
+async def refresh_session(body: RefreshRequest, session: AsyncSession = Depends(get_session)):
+    try:
+        payload = token_provider.decode(body.refresh_token, expected_type=TokenType.REFRESH)
+    except AuthenticationError:
+        raise HTTPException(401, 'Refresh token không hợp lệ hoặc đã hết hạn') from None
+    new_token = token_provider.create_refresh_token(user_id=payload.user_id)
+    try:
+        result = await session.execute(text('CALL sp_rotate_refresh(:user_id,:old_jti,:new_jti,:expires)'),
+            {'user_id':payload.user_id,'old_jti':payload.jti,'new_jti':new_token.jti,
+             'expires':new_token.expires_at.replace(tzinfo=None)})
+        user = dict(result.mappings().one())
+        await session.commit()
+    except DBAPIError as exc:
+        await session.rollback()
+        if exc.orig.args[0] == 1644:
+            raise HTTPException(401, 'Refresh token không còn hiệu lực') from None
+        raise
+    return token_response(user, new_token)
+
+
+@app.post('/auth/logout', status_code=204)
+async def logout(body: RefreshRequest, session: AsyncSession = Depends(get_session)):
+    try:
+        payload = token_provider.decode(body.refresh_token, expected_type=TokenType.REFRESH)
+    except AuthenticationError:
+        return Response(status_code=204)
+    await session.execute(text('CALL sp_logout_session(:user_id,:jti)'),
+                          {'user_id':payload.user_id,'jti':payload.jti})
+    await session.commit()
+    return Response(status_code=204)
