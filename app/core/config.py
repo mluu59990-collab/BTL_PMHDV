@@ -19,6 +19,9 @@ class Settings(BaseSettings):
     db_max_overflow: int = 20
     db_echo: bool = False
 
+    # Khóa nội bộ: chỉ nhận HTTP request từ gateway.
+    gateway_shared_secret: str = Field(min_length=32, repr=False)
+
     # JWT
     jwt_secret_key: str = Field(min_length=32)
     jwt_algorithm: str = "HS256"
