@@ -101,3 +101,41 @@ async def get_users(user=Depends(current_user), session: AsyncSession = Depends(
         raise HTTPException(403, 'Chỉ ADMIN được xem danh sách người dùng')
     result = await session.execute(text('CALL sp_get_users()'))
     return [dict(row) for row in result.mappings().all()]
+
+
+# Đăng ký tài khoản công khai.
+from pydantic import ConfigDict, EmailStr, field_validator
+from sqlalchemy.exc import IntegrityError
+
+
+class RegisterRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid', str_strip_whitespace=False)
+    username: str = Field(pattern=r'^[A-Za-z0-9_.-]{3,50}$')
+    password: str = Field(min_length=8, max_length=128)
+    full_name: str = Field(min_length=1, max_length=150)
+    email: EmailStr | None = None
+    phone: str | None = Field(default=None, pattern=r'^\+?[0-9]{8,15}$')
+
+    @field_validator('full_name')
+    @classmethod
+    def clean_name(cls, value):
+        if not value.strip():
+            raise ValueError('Họ tên không được để trống')
+        return value.strip()
+
+
+@app.post('/auth/register', status_code=201)
+async def register(body: RegisterRequest, session: AsyncSession = Depends(get_session)):
+    hashed = await password_hasher.hash(body.password)
+    try:
+        result = await session.execute(text('CALL sp_register_user(:username,:email,:full_name,:phone,:password_hash)'),
+            {'username':body.username,'email':str(body.email) if body.email else None,
+             'full_name':body.full_name,'phone':body.phone,'password_hash':hashed})
+        user = dict(result.mappings().one())
+        await session.commit()
+    except IntegrityError as exc:
+        await session.rollback()
+        if exc.orig.args[0] == 1062:
+            raise HTTPException(409, 'Tên đăng nhập hoặc email đã tồn tại') from None
+        raise
+    return user

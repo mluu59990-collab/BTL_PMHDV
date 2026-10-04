@@ -9,7 +9,7 @@ from starlette.responses import StreamingResponse
 from gateway_app.config import Settings
 
 # Chỉ chính xác method + path này được gọi khi chưa có access token.
-PUBLIC_ROUTES = {('POST', '/auth/login'), ('GET', '/health')}
+PUBLIC_ROUTES = {('POST', '/auth/login'), ('POST', '/auth/register'), ('GET', '/health')}
 HOP_HEADERS = {'connection', 'keep-alive', 'proxy-authenticate',
                'proxy-authorization', 'te', 'trailer', 'transfer-encoding', 'upgrade'}
 

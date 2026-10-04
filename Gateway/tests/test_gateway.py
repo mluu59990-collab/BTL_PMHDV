@@ -65,7 +65,7 @@ def test_forwarding_and_spoofed_headers():
     assert 'x-remove' not in response.headers
 
 
-@pytest.mark.parametrize('path,method', [('/auth/login','POST'),('/health','GET')])
+@pytest.mark.parametrize('path,method', [('/auth/login','POST'),('/auth/register','POST'),('/health','GET')])
 def test_public(path, method):
     with client_for(lambda req: upstream_response()) as client:
         assert client.request(method, path).status_code == 200

@@ -341,6 +341,37 @@
           }
         }
       ]
+    },
+    {
+      "name": "Đăng ký khách hàng",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/auth/register",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"khach_{{$timestamp}}\",\n  \"password\": \"Strong@123456\",\n  \"full_name\": \"Khách hàng mới\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Đăng ký thành công\", () => pm.response.to.have.status(201));"
+            ]
+          }
+        }
+      ]
     }
   ]
 }

@@ -89,7 +89,7 @@ Tài khoản trên là tài khoản seed thực hành. Nếu bạn đã thay m�
 - `tests/test_gateway.py`: test xác thực, proxy và xử lý lỗi.
 - `integration/check_flow.py`: test xuyên gateway/BE với DB giả lập; chạy từ Gateway bằng `python integration/check_flow.py ../BE` sau khi cài requirements của BE vào môi trường test.
 
-Chỉ `POST /auth/login`, `GET /health` và health riêng gateway là công khai. API mới mặc định cần access token; token refresh không được dùng thay access token. Gateway không cấp JWT. BE cấp access token và kiểm tra lại token cùng trạng thái/vai trò trong DB. Chưa triển khai refresh/logout ở luồng mới.
+Chỉ `POST /auth/login`, `POST /auth/register`, `GET /health` và health riêng gateway là công khai. API mới mặc định cần access token; token refresh không được dùng thay access token. Gateway không cấp JWT. BE cấp access token và kiểm tra lại token cùng trạng thái/vai trò trong DB. Chưa triển khai refresh/logout ở luồng mới.
 
 Gateway loại header danh tính do client tự gửi, tự thêm khóa nội bộ. BE kiểm tra khóa trên mọi request, kể cả health. Khi triển khai phải dùng HTTPS, giữ BE trong mạng nội bộ và giới hạn kết nối từ gateway; khóa dùng chung không thay thế kiểm soát mạng.
 
