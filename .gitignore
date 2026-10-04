@@ -1,17 +1,20 @@
+# Secrets and local environments
+.env
+.env.*
+!.env.example
 .venv/
+venv/
+# Generated files
 __pycache__/
 *.py[cod]
 .pytest_cache/
 .ruff_cache/
-.env
+node_modules/
+.postman/
+.DS_Store
 *.egg-info/
 .coverage
 htmlcov/
 *.db
-.DS_Store
-# Local Postman runtime exports may contain credentials.
-reports/**/newman.private.json
-reports/**/server.log
-reports/**/newman.log
-.env.*
-!.env.example
+*.log
+*.private.json
