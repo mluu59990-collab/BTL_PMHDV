@@ -104,12 +104,24 @@ async def me(user=Depends(current_user)):
     return dict(user)
 
 
+def require_roles(*roles):
+    async def check_role(user=Depends(current_user)):
+        if user['role'] not in roles:
+            raise HTTPException(403, 'Không có quyền thực hiện chức năng này')
+        return user
+    return check_role
+
+
+from fastapi import Query
+
+
 @app.get('/users')
-async def get_users(user=Depends(current_user), session: AsyncSession = Depends(get_session)):
-    # Vai trò lấy từ DB hiện tại, không tin role do client gửi hoặc JWT cũ.
-    if user['role'] != 'ADMIN':
-        raise HTTPException(403, 'Chỉ ADMIN được xem danh sách người dùng')
-    result = await session.execute(text('CALL sp_get_users()'))
+async def get_users(user=Depends(require_roles('ADMIN')),
+                    limit: int = Query(default=10, ge=1, le=100),
+                    offset: int = Query(default=0, ge=0),
+                    session: AsyncSession = Depends(get_session)):
+    result = await session.execute(text('CALL sp_get_users_page(:limit,:offset)'),
+                                   {'limit':limit,'offset':offset})
     return [dict(row) for row in result.mappings().all()]
 
 
@@ -194,3 +206,51 @@ async def logout(body: RefreshRequest, session: AsyncSession = Depends(get_sessi
                           {'user_id':payload.user_id,'jti':payload.jti})
     await session.commit()
     return Response(status_code=204)
+
+
+from typing import Literal
+from pydantic import model_validator
+
+Role = Literal['ADMIN','SALE','WAREHOUSE','ACCOUNTANT','CUSTOMER']
+UserStatus = Literal['ACTIVE','INACTIVE','LOCKED']
+
+
+class UserAccessUpdate(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    role: Role | None = None
+    status: UserStatus | None = None
+
+    @model_validator(mode='after')
+    def at_least_one(self):
+        if self.role is None and self.status is None:
+            raise ValueError('Cần role hoặc status')
+        return self
+
+
+@app.get('/auth/permissions')
+async def permissions(user=Depends(current_user)):
+    allowed = ['profile:read','exchange-rates:read','fee-configs:read']
+    if user['role'] == 'ADMIN':
+        allowed += ['users:read','users:manage','exchange-rates:write','fee-configs:write']
+    return {'role':user['role'],'permissions':allowed}
+
+
+@app.patch('/users/{user_id}/access')
+async def update_user_access(user_id: int, body: UserAccessUpdate,
+                             actor=Depends(require_roles('ADMIN')),
+                             session: AsyncSession = Depends(get_session)):
+    try:
+        result = await session.execute(text('CALL sp_update_user_access(:actor,:id,:role,:status)'),
+            {'actor':actor['id'],'id':user_id,'role':body.role,'status':body.status})
+        user = dict(result.mappings().one())
+        await session.commit()
+    except DBAPIError as exc:
+        await session.rollback()
+        if exc.orig.args[0] == 1644:
+            message = str(exc.orig.args[1])
+            status,detail = {'NOT_FOUND':(404,'Không tìm thấy tài khoản'),
+                            'LAST_ADMIN':(409,'Phải giữ ít nhất một ADMIN đang hoạt động'),
+                            'FORBIDDEN':(403,'Không có quyền quản lý tài khoản')}.get(message,(409,'Không thể cập nhật tài khoản'))
+            raise HTTPException(status, detail) from None
+        raise
+    return user

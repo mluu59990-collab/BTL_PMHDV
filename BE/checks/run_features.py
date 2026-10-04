@@ -124,6 +124,27 @@ async def main(env):
                 await check('POST','/auth/login',403,json={'username':body['username'],'password':body['password']})
                 async with db.begin() as conn:
                     await conn.execute(text("UPDATE users SET status='ACTIVE' WHERE id=:id"),{'id':customer_id})
+                # Đủ 5 vai trò và quyền lấy từ DB hiện tại.
+                roles={'admin':'ADMIN','sale01':'SALE','kho01':'WAREHOUSE','ketoan01':'ACCOUNTANT','khach01':'CUSTOMER'}
+                role_tokens={}
+                for username,role in roles.items():
+                    response=await check('POST','/auth/login',200,json={'username':username,'password':'Admin@123456' if username=='admin' else 'Test@123456'})
+                    role_tokens[role]=response.json()
+                    headers={'Authorization':'Bearer '+response.json()['access_token']}
+                    response=await check('GET','/auth/permissions',200,headers=headers)
+                    assert response.json()['role']==role
+                    await check('GET','/users',200 if role=='ADMIN' else 403,headers=headers)
+                await check('PATCH',f'/users/{customer_id}/access',403,headers=customer_headers,json={'role':'ADMIN'})
+                await check('PATCH','/users/999999/access',404,headers=admin_headers,json={'role':'SALE'})
+                await check('PATCH',f'/users/{customer_id}/access',422,headers=admin_headers,json={'role':'ROOT'})
+                await check('PATCH','/users/1/access',409,headers=admin_headers,json={'status':'LOCKED'})
+                await check('PATCH',f'/users/{customer_id}/access',200,headers=admin_headers,json={'role':'ADMIN'})
+                # Token cũ ghi CUSTOMER nhưng DB mới là ADMIN: quyền cập nhật ngay.
+                await check('GET','/users',200,headers=customer_headers)
+                await check('PATCH',f'/users/{customer_id}/access',200,headers=admin_headers,json={'role':'CUSTOMER'})
+                await check('GET','/users',403,headers=customer_headers)
+                await check('GET','/users?limit=0',422,headers=admin_headers)
+                await check('GET','/users?offset=-1',422,headers=admin_headers)
                 # FEATURE_CHECKS: Các kiểm thử chức năng tiếp theo được bổ sung tại đây.
         print(f'PASS: {count} HTTP checks qua Gateway + MySQL thật; chặn gọi trực tiếp BE.')
     finally:

@@ -437,6 +437,51 @@
           }
         }
       ]
+    },
+    {
+      "name": "Xem quyền của tài khoản",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/auth/permissions",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{access_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": []
+      }
+    },
+    {
+      "name": "ADMIN cập nhật quyền tài khoản",
+      "request": {
+        "method": "PATCH",
+        "url": "{{base_url}}/users/{{user_id}}/access",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{access_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"role\": \"SALE\"}"
+        }
+      }
     }
   ]
 }
