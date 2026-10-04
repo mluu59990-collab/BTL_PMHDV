@@ -40,3 +40,14 @@ Gateway mặc định bảo vệ API mới. Chỉ auth/register, auth/login, aut
 Database mới: chạy `sql/my_db_logistic.sql`. Database hiện có: giữ nguyên bảng/dữ liệu. Chạy các file thủ tục theo thứ tự `05_procedures.sql`, `06_auth_sessions.sql`, `07_rbac.sql`.
 
 Test trên DB tạm: xem `BE/checks/README.md`. Không dùng kết quả test cũ CRM/catalog để kết luận chức năng logistics hiện tại.
+
+## Tỷ giá ngoại tệ
+
+Chạy `sql/08_exchange_rates.sql` sau các file trên. Quy ước `rate` = số VNĐ cho 1 đơn vị ngoại tệ; NDT được chuẩn hóa thành mã CNY. Đây là tỷ giá Admin nhập thủ công, chưa kết nối ngân hàng.
+
+- `POST /exchange-rates` (ADMIN): `{"currency_code":"CNY","rate":"3920.1234","note":"Tỷ giá ngày mới"}`. Mỗi lần tạo là một bản ghi lịch sử; không ghi đè tỷ giá cũ.
+- `GET /exchange-rates/current`: tỷ giá mới nhất của các ngoại tệ đã cấu hình.
+- `GET /exchange-rates/current/CNY` hoặc `/NDT`, `/USD`: tỷ giá mới nhất; chưa cấu hình trả 404.
+- `GET /exchange-rates/history?currency_code=CNY&limit=20&offset=0`: lịch sử giảm dần; hỗ trợ `date_from`, `date_to` dạng ISO-8601 có múi giờ, ví dụ `2026-10-01T00:00:00Z` (bao gồm hai mốc).
+
+Tỷ giá phải dương, tối đa 4 chữ số thập phân; JSON trả tiền dạng chuỗi để giữ độ chính xác. Timestamps trả UTC. Tất cả vai trò đang hoạt động được đọc.

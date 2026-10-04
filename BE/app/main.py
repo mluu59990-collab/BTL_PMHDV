@@ -254,3 +254,82 @@ async def update_user_access(user_id: int, body: UserAccessUpdate,
             raise HTTPException(status, detail) from None
         raise
     return user
+
+
+from datetime import datetime, timezone
+from decimal import Decimal
+from pydantic import AwareDatetime
+
+
+def serialize_row(row):
+    # Giữ nguyên độ chính xác tiền tệ; timestamp lưu UTC trong MySQL.
+    return {key: str(value) if isinstance(value, Decimal) else
+            value.replace(tzinfo=timezone.utc).isoformat() if isinstance(value, datetime) else value
+            for key,value in row.items()}
+
+
+def normalize_currency(value):
+    value = value.upper()
+    return 'CNY' if value == 'NDT' else value
+
+
+class ExchangeRateCreate(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    currency_code: Literal['CNY','USD']
+    rate: Decimal = Field(gt=0,max_digits=18,decimal_places=4,allow_inf_nan=False)
+    note: str | None = Field(default=None,max_length=255)
+
+    @field_validator('currency_code',mode='before')
+    @classmethod
+    def currency_alias(cls,value):
+        return normalize_currency(value) if isinstance(value,str) else value
+
+
+@app.post('/exchange-rates',status_code=201)
+async def create_exchange_rate(body: ExchangeRateCreate, actor=Depends(require_roles('ADMIN')),
+                               session: AsyncSession = Depends(get_session)):
+    try:
+        result = await session.execute(text('CALL sp_create_exchange_rate(:actor,:currency,:rate,:note)'),
+            {'actor':actor['id'],'currency':body.currency_code,'rate':body.rate,'note':body.note})
+        row = serialize_row(result.mappings().one())
+        await session.commit()
+    except DBAPIError as exc:
+        await session.rollback()
+        if exc.orig.args[0] == 1644:
+            raise HTTPException(403,'Không có quyền cập nhật tỷ giá') from None
+        raise
+    return row
+
+
+@app.get('/exchange-rates/current')
+async def current_exchange_rates(user=Depends(current_user), session: AsyncSession = Depends(get_session)):
+    result = await session.execute(text('CALL sp_current_exchange_rates(:currency)'),{'currency':None})
+    return [serialize_row(row) for row in result.mappings().all()]
+
+
+@app.get('/exchange-rates/current/{currency}')
+async def current_exchange_rate(currency: Literal['CNY','USD','NDT'], user=Depends(current_user),
+                                session: AsyncSession = Depends(get_session)):
+    result = await session.execute(text('CALL sp_current_exchange_rates(:currency)'),
+                                   {'currency':normalize_currency(currency)})
+    row = result.mappings().first()
+    if row is None:
+        raise HTTPException(404,'Chưa cấu hình tỷ giá cho ngoại tệ này')
+    return serialize_row(row)
+
+
+@app.get('/exchange-rates/history')
+async def exchange_rate_history(currency_code: Literal['CNY','USD','NDT'] | None = None,
+                                date_from: AwareDatetime | None = None,
+                                date_to: AwareDatetime | None = None,
+                                limit: int = Query(default=20,ge=1,le=100),
+                                offset: int = Query(default=0,ge=0),
+                                user=Depends(current_user),session: AsyncSession = Depends(get_session)):
+    if date_from and date_to and date_from>date_to:
+        raise HTTPException(422,'date_from không được sau date_to')
+    result = await session.execute(text('CALL sp_exchange_rate_history(:currency,:start,:end,:limit,:offset)'),
+        {'currency':normalize_currency(currency_code) if currency_code else None,
+         'start':date_from.astimezone(timezone.utc).replace(tzinfo=None) if date_from else None,
+         'end':date_to.astimezone(timezone.utc).replace(tzinfo=None) if date_to else None,
+         'limit':limit,'offset':offset})
+    return {'items':[serialize_row(row) for row in result.mappings().all()],'limit':limit,'offset':offset}

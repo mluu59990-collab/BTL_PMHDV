@@ -145,6 +145,27 @@ async def main(env):
                 await check('GET','/users',403,headers=customer_headers)
                 await check('GET','/users?limit=0',422,headers=admin_headers)
                 await check('GET','/users?offset=-1',422,headers=admin_headers)
+                # Tỷ giá append-only, CNY/NDT cùng một ngoại tệ, tiền không mất chính xác.
+                await check('GET','/exchange-rates/current/CNY',404,headers=admin_headers)
+                for code,value in [('CNY','3920.1234'),('USD','26500.0000'),('NDT','3930.4321')]:
+                    response=await check('POST','/exchange-rates',201,headers=admin_headers,json={'currency_code':code,'rate':value})
+                    assert response.json()['rate']==value
+                response=await check('GET','/exchange-rates/current/NDT',200,headers=customer_headers)
+                assert response.json()['rate']=='3930.4321'
+                response=await check('GET','/exchange-rates/history?currency_code=CNY',200,headers=admin_headers)
+                assert len(response.json()['items'])==2
+                assert response.json()['items'][1]['rate']=='3920.1234'
+                for role,tokens in role_tokens.items():
+                    headers={'Authorization':'Bearer '+tokens['access_token']}
+                    await check('GET','/exchange-rates/current',200,headers=headers)
+                    if role!='ADMIN':
+                        await check('POST','/exchange-rates',403,headers=headers,json={'currency_code':'USD','rate':'1'})
+                for value in ['0','-1','1.12345','NaN']:
+                    await check('POST','/exchange-rates',422,headers=admin_headers,json={'currency_code':'USD','rate':value})
+                await check('POST','/exchange-rates',422,headers=admin_headers,json={'currency_code':'EUR','rate':'1'})
+                await check('GET','/exchange-rates/history?date_from=2026-10-02T00:00:00Z&date_to=2026-10-01T00:00:00Z',422,headers=admin_headers)
+                response=await check('GET','/exchange-rates/history?limit=1&offset=1',200,headers=admin_headers)
+                assert len(response.json()['items'])==1
                 # FEATURE_CHECKS: Các kiểm thử chức năng tiếp theo được bổ sung tại đây.
         print(f'PASS: {count} HTTP checks qua Gateway + MySQL thật; chặn gọi trực tiếp BE.')
     finally:

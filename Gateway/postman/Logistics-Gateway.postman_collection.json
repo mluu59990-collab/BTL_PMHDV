@@ -482,6 +482,69 @@
           "raw": "{\"role\": \"SALE\"}"
         }
       }
+    },
+    {
+      "name": "ADMIN cập nhật tỷ giá",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/exchange-rates",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{access_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"currency_code\": \"CNY\", \"rate\": \"3920.1234\"}"
+        }
+      }
+    },
+    {
+      "name": "Tra cứu tỷ giá hiện tại",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/exchange-rates/current",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{access_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": []
+      }
+    },
+    {
+      "name": "Lịch sử tỷ giá CNY",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/exchange-rates/history?currency_code=CNY",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{access_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": []
+      }
     }
   ]
 }
