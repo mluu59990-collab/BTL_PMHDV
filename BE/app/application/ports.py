@@ -1,4 +1,4 @@
-"""Các 'cổng' mà tầng application cần từ bên ngoài (hash mật khẩu, JWT, transaction)."""
+"""Các 'cổng' mà tầng application cần từ bên ngoài (hash mật khẩu, JWT)."""
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime
@@ -40,14 +40,3 @@ class TokenProvider(ABC):
     @abstractmethod
     def decode(self, token: str, *, expected_type: TokenType) -> TokenPayload:
         """Ném AuthenticationError nếu token sai/hết hạn/sai loại."""
-
-
-class UnitOfWork(ABC):
-    """Ranh giới transaction: service gọi commit() khi xong một nghiệp vụ."""
-
-    @abstractmethod
-    async def commit(self) -> None:
-        """Ném ConflictError nếu vi phạm ràng buộc (trùng dữ liệu...)."""
-
-    @abstractmethod
-    async def rollback(self) -> None: ...

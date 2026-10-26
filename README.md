@@ -1,60 +1,107 @@
-# BTL Phát triển phần mềm hướng dịch vụ
+# Logistics — database cms_logistics
 
-Một repo chứa backend FastAPI, API Gateway riêng và SQL logistics.
+Luồng hiện tại: Postman / Frontend → Gateway :8000 → BE :8001 → MySQL.
+BE dùng stored procedure với 10 bảng tiếng Việt. Tên trường JSON vẫn là `id`,
+`username`, `full_name`, `role`, `status` để giữ tương thích client.
 
-```text
-Postman / Frontend → Gateway :8000 → BE :8001 → MySQL :3306
-```
+## Chạy lại trên máy đã cấu hình
 
-## Cấu trúc
-
-- `BE/`: backend và phần nghiệp vụ. Code cũ CRM/catalog vẫn được giữ để tham khảo; luồng đang chạy trong `BE/app/main.py` dùng stored procedure logistics.
-- `Gateway/`: dịch vụ FastAPI xác thực JWT và chuyển request sang BE.
-- `sql/`: schema, dữ liệu mẫu và stored procedure.
-- `doc/`: tài liệu SRS và kế hoạch.
-- `BTL/postman/`: metadata workspace Postman có sẵn trên máy.
-
-## Chạy lần đầu
-
-1. Bật MySQL. Chạy `sql/my_db_logistic.sql` để tạo database và dữ liệu dev. Nếu muốn thêm dữ liệu thực hành, chạy `sql/data.sql` (xem nội dung trước khi chạy lại).
-2. Chạy lần lượt các file `sql/05_procedures.sql` → `06_auth_sessions.sql` → `07_rbac.sql` → `08_exchange_rates.sql` → `09_fee_configs.sql` trong MySQL Workbench. Các file bổ sung bảng và thủ tục cho đăng ký, JWT/RBAC, tỷ giá và bảng phí; không xóa dữ liệu nghiệp vụ.
-3. Tạo môi trường riêng và cài thư viện trong mỗi thư mục:
+Bật MySQL trước. Từ gốc repo, mở hai Terminal:
 
 ```bash
-cd BE
-python3 -m venv .venv
-.venv/bin/python -m pip install -r requirements.txt
-cd ../Gateway
-python3 -m venv .venv
-.venv/bin/python -m pip install -r requirements-dev.txt
+cd BE && DEBUG=false .venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port 8001 --reload
 ```
-
-4. Tạo `BE/.env` và `Gateway/.env` theo `.env.example` của từng thư mục. Cấu hình `DATABASE_URL` tại BE trỏ tới `cms_logistics_core`. Hai file phải có cùng `JWT_SECRET_KEY` và cùng `GATEWAY_SHARED_SECRET`; hai loại khóa phải khác nhau và dài ít nhất 32 ký tự. Không commit `.env`.
-5. Trong Terminal tại BE:
 
 ```bash
-DEBUG=false .venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port 8001 --reload
+cd Gateway && .venv/bin/python -m uvicorn gateway_app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
-6. Trong Terminal khác tại Gateway:
+Kiểm tra: `curl http://127.0.0.1:8000/health`.
+
+## Cài đặt lần đầu
+
+1. Tạo database `cms_logistics` trong MySQL (utf8mb4). Nếu chưa có bảng, chạy
+   `sql/cms_logistics_schema.sql` trong database này. File chỉ có cấu trúc, không có tài khoản mẫu.
+2. Cài thư viện trong BE và Gateway: `python3 -m venv .venv`, rồi
+   `.venv/bin/python -m pip install -r requirements.txt` ở mỗi thư mục.
+3. Tạo `.env` từ `.env.example` nếu chưa có. BE dùng
+   `DATABASE_URL=mysql+asyncmy://USER:PASSWORD@127.0.0.1:3306/cms_logistics`.
+   Hai bên dùng cùng `JWT_SECRET_KEY` và cùng `GATEWAY_SHARED_SECRET`;
+   hai loại khóa phải khác nhau, mỗi khóa ít nhất 32 ký tự.
+4. Mở `sql/cms_logistics_procedures.sql` trong MySQL Workbench và chạy toàn bộ
+   rồi chạy `sql/cms_logistics_customers.sql`, `sql/cms_logistics_orders.sql`
+   để cài stored procedure cho `cms_logistics`.
+   Các file procedure không thêm bảng hoặc dữ liệu mẫu.
+   API đăng ký tạo CUSTOMER; ADMIN phải được quản trị viên cấp quyền trong DB.
+   Các file SQL cũ `05`–`09` và `my_db_logistic.sql` thuộc schema trước đây.
+
+## API hiện tại
+
+Không có prefix `/api/v1`. Client gọi cổng 8000; Swagger đã tắt.
+
+| Method | Path | Quyền |
+|---|---|---|
+| GET | /gateway/health | Công khai; chỉ kiểm tra Gateway |
+| GET | /health | Công khai; kiểm tra BE và bảng người dùng |
+| POST | /auth/register | Công khai; tạo CUSTOMER |
+| POST | /auth/login | Công khai |
+| POST | /auth/refresh | Refresh token trong body |
+| POST | /auth/logout | Refresh token trong body |
+| GET | /auth/me | Bearer access token |
+| GET | /auth/permissions | Bearer access token |
+| GET | /users | ADMIN; limit/offset |
+| PATCH | /users/{user_id}/access | ADMIN; role/status |
+| POST | /customers | ADMIN hoặc SALE; SALE tự gán phụ trách |
+| GET | /customers | ADMIN tất cả; SALE được phân công; CUSTOMER của mình |
+| GET | /customers/{id} | Cùng phạm vi với danh sách |
+| PATCH | /customers/{id} | ADMIN hoặc SALE được phân công |
+| DELETE | /customers/{id} | ADMIN hoặc SALE được phân công; xóa mềm |
+| POST | /orders | ADMIN hoặc SALE phụ trách khách; tạo đơn + hàng gửi |
+| GET | /orders | ADMIN tất cả, SALE phụ trách khách, CUSTOMER của mình |
+| GET | /orders/{id} | Chi tiết đơn kèm hàng, cùng phạm vi với danh sách |
+| PATCH | /orders/{id} | ADMIN hoặc SALE phụ trách; chỉ sửa PENDING |
+| PATCH | /orders/{id}/status | ADMIN hoặc SALE phụ trách; đúng luồng trạng thái |
+
+Ví dụ đăng ký: `{"username":"customer01","password":"Strong@123456","full_name":"Khách mới"}`.
+Đăng nhập: `{"username":"customer01","password":"Strong@123456"}`.
+Refresh/logout: `{"refresh_token":"..."}`.
+Đổi quyền: `{"role":"SALE"}`; khóa: `{"status":"LOCKED"}`.
+
+Mật khẩu Argon2, JWT access/refresh, refresh xoay vòng, kiểm tra quyền từ DB,
+thu hồi refresh khi đổi quyền/trạng thái và bảo vệ ADMIN cuối cùng được giữ lại.
+Logout không thu hồi ngay access token đã phát.
+
+DB không có bảng tỷ giá/bảng phí: các API này đã được gỡ, gọi với token hợp lệ trả 404.
+Đã có API khách hàng và đơn vận chuyển kèm hàng gửi. Kho, kiện hàng, lịch sử vận chuyển
+và thanh toán chưa có API nghiệp vụ. Không có danh mục sản phẩm bán hàng.
+Code CRM/catalog, service, router, repository và ORM model cũ đã được dọn khỏi BE/app.
+Các file SQL cũ ở thư mục gốc sql thuộc schema trước đây.
+
+## Postman và kiểm thử
+
+Import `Gateway/postman/Logistics-Gateway.postman_collection.json`.
+Điền mật khẩu tài khoản thực tế trong collection; collection tạo dữ liệu thử khi chạy.
+Kiểm thử Gateway và luồng Gateway → BE (DB giả lập):
 
 ```bash
-.venv/bin/python -m uvicorn gateway_app.main:app --host 127.0.0.1 --port 8000 --reload
+BE/.venv/bin/python -m pip install -r BE/requirements-dev.txt
+BE/.venv/bin/python Gateway/integration/check_flow.py BE
+BE/.venv/bin/python BE/tests/check_customers.py
+BE/.venv/bin/python BE/tests/check_orders.py --postman
+cd Gateway && ../BE/.venv/bin/python -m pytest tests -q
 ```
 
-7. Import `Gateway/postman/Logistics-Gateway.postman_collection.json` vào Postman. Client gọi cổng 8000; gọi trực tiếp BE thiếu khóa nội bộ sẽ trả 403.
+Bộ test khách hàng tạo DB MySQL tạm cùng 10 bảng, kiểm tra quyền và tự xóa DB tạm;
+cần quyền CREATE/DROP DATABASE và CREATE ROUTINE. Bộ test CRM/catalog cũ đã được xóa. Runner MySQL `BE/checks` và các script
+`BE/scripts` hiện không còn trong workspace.
 
-Xem hướng dẫn đầy đủ tại [Gateway/README.md](Gateway/README.md). Các tài liệu/test CRM/catalog cũ trong BE thuộc phiên bản trước, không phải toàn bộ chức năng của luồng logistics hiện tại.
+## MySQL Docker tùy chọn
 
-## Kiểm thử gateway
+`docker compose -f BE/docker-compose.yml up -d` dùng cổng **3307**.
+MySQL local đang được sử dụng trên máy là cổng **3306**.
+Docker chỉ chạy SQL khởi tạo khi volume mới/rỗng; volume cũ không tự cập nhật.
+Không xóa volume chứa dữ liệu. Muốn dùng Docker, kiểm tra schema và đổi URL sang 3307.
 
-Từ thư mục Gateway:
+API khách hàng chi tiết và luồng code: [docs/CUSTOMERS_API.md](docs/CUSTOMERS_API.md).
 
-```bash
-.venv/bin/python -m pytest tests -q
-../BE/.venv/bin/python integration/check_flow.py ../BE
-```
-
-Bộ integration dùng DB giả lập để kiểm tra luồng Gateway → BE; không thay thế việc test MySQL thật. Nếu chỉ cài requirements.txt cho BE, cài thêm requirements-dev.txt trước khi chạy integration test.
-
-API Buổi 1 mới: [hướng dẫn endpoint và dữ liệu mẫu](docs/API_BUOI_1.md). Kiểm thử MySQL thật: `BE/checks/run_features.py --env /đường/dẫn/BE/.env`.
+API đơn vận chuyển và luồng code: [docs/ORDERS_API.md](docs/ORDERS_API.md).

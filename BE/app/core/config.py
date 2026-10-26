@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     debug: bool = False
 
     # Kết nối DB bất đồng bộ (driver asyncmy)
-    database_url: str = "mysql+asyncmy://cms:cms@127.0.0.1:3306/cms_nguonhang1688"
+    database_url: str = "mysql+asyncmy://cms:cms@127.0.0.1:3306/cms_logistics"
     db_pool_size: int = 10
     db_max_overflow: int = 20
     db_echo: bool = False
