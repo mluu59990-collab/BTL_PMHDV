@@ -201,8 +201,8 @@ async def main():
                         ('PATCH',f'/orders/{first}',{'json':{'note':'Denied'}}),
                         ('PATCH',f'/orders/{first}/status',{'json':{'status':'CONFIRMED'}})]:
                         await check(method,path,403,who,**kwargs)
-                await check('GET','/orders',403,'warehouse')
-                await check('GET',f'/orders/{first}',403,'warehouse')
+                await check('GET','/orders',200,'warehouse')
+                await check('GET',f'/orders/{first}',200,'warehouse')
                 await check('POST','/orders',404,'sale_b',json=body)
                 await check('PATCH',f'/orders/{first}',404,'sale_b',json={'note':'Denied'})
                 await check('PATCH',f'/orders/{first}/status',404,'sale_b',json={'status':'CONFIRMED'})

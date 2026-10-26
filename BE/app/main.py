@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import get_settings
 from app.customers import create_customer_router
 from app.orders import create_order_router
+from app.fulfillment import create_fulfillment_router
 from app.domain.enums import TokenType
 from app.domain.exceptions import AuthenticationError
 from app.infrastructure.db.session import engine, get_session
@@ -233,11 +234,13 @@ class UserAccessUpdate(BaseModel):
 async def permissions(user=Depends(current_user)):
     allowed = ['profile:read']
     if user['role'] == 'ADMIN':
-        allowed += ['users:read','users:manage','customers:read:all','customers:manage:all','orders:read:all','orders:manage:all']
+        allowed += ['users:read','users:manage','customers:read:all','customers:manage:all','orders:read:all','orders:manage:all','warehouses:manage','warehouses:read:all','packages:manage','packages:read:all']
     elif user['role'] == 'SALE':
-        allowed += ['customers:read:assigned','customers:manage:assigned','orders:read:assigned','orders:manage:assigned']
+        allowed += ['customers:read:assigned','customers:manage:assigned','orders:read:assigned','orders:manage:assigned','packages:read:assigned','warehouses:read:related']
+    elif user['role'] == 'WAREHOUSE':
+        allowed += ['orders:read:all','warehouses:read:all','packages:read:all','packages:manage']
     if user['role'] == 'CUSTOMER':
-        allowed += ['customers:read:own','orders:read:own']
+        allowed += ['customers:read:own','orders:read:own','packages:read:own','warehouses:read:related']
     return {'role':user['role'],'permissions':allowed}
 
 
@@ -265,3 +268,5 @@ async def update_user_access(user_id: int, body: UserAccessUpdate,
 # Các router dùng chung dependency xác thực tài khoản.
 app.include_router(create_customer_router(current_user))
 app.include_router(create_order_router(current_user))
+
+app.include_router(create_fulfillment_router(current_user))

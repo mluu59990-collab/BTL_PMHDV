@@ -18,3 +18,6 @@ Chưa hỗ trợ CORS cho frontend khác origin, WebSocket hoặc rate limiting.
 Đơn vận chuyển: import `postman/Logistics-Orders.postman_collection.json`, cấu hình
 `admin_username`/`admin_password`. Collection tạo khách và đơn thử trong DB đang kết nối.
 Hướng dẫn: [ORDERS_API.md](../docs/ORDERS_API.md).
+
+Kho/kiện: import `postman/Logistics-Fulfillment.postman_collection.json`, cấu hình
+`admin_username`/`admin_password`. Xem [FULFILLMENT_API.md](../docs/FULFILLMENT_API.md).

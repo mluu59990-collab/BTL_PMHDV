@@ -16,8 +16,8 @@ BEGIN
     ELSE
         SELECT vai_tro INTO p_role FROM nguoi_dung WHERE ma=p_actor AND trang_thai='ACTIVE';
     END IF;
-    IF p_role IS NULL OR p_role NOT IN ('ADMIN','SALE','CUSTOMER')
-       OR (p_write AND p_role='CUSTOMER') THEN
+    IF p_role IS NULL OR p_role NOT IN ('ADMIN','SALE','CUSTOMER','WAREHOUSE')
+       OR (p_write AND p_role NOT IN ('ADMIN','SALE')) THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='FORBIDDEN';
     END IF;
 END$$
@@ -57,7 +57,7 @@ BEGIN
         o.phi_van_chuyen AS shipping_fee, o.trang_thai AS status, o.ghi_chu AS note,
         o.ngay_tao AS created_at, o.ngay_cap_nhat AS updated_at
     FROM don_hang o JOIN khach_hang c ON c.ma=o.ma_khach_hang
-    WHERE (v_role='ADMIN' OR (v_role='SALE' AND c.ma_nhan_vien_phu_trach=p_actor)
+    WHERE (v_role IN ('ADMIN','WAREHOUSE') OR (v_role='SALE' AND c.ma_nhan_vien_phu_trach=p_actor)
         OR (v_role='CUSTOMER' AND c.ma_nguoi_dung=p_actor))
       AND (p_customer IS NULL OR o.ma_khach_hang=p_customer)
       AND (p_status IS NULL OR o.trang_thai=p_status)
@@ -78,10 +78,12 @@ BEGIN
         o.phi_van_chuyen AS shipping_fee, o.trang_thai AS status, o.ghi_chu AS note,
         o.ngay_tao AS created_at, o.ngay_cap_nhat AS updated_at,
         COALESCE((SELECT JSON_ARRAYAGG(JSON_OBJECT('id',d.ma,'name',d.ten_san_pham,
-            'quantity',d.so_luong,'note',d.ghi_chu)) FROM chi_tiet_don_hang d WHERE d.ma_don_hang=o.ma),
+            'quantity',d.so_luong,'note',d.ghi_chu,
+            'packed_quantity',(SELECT COALESCE(SUM(a.so_luong),0) FROM chi_tiet_kien_hang a JOIN kien_hang p ON p.ma=a.ma_kien_hang WHERE a.ma_chi_tiet_don_hang=d.ma AND p.trang_thai<>'CANCELLED'),
+            'remaining_quantity',d.so_luong-(SELECT COALESCE(SUM(a.so_luong),0) FROM chi_tiet_kien_hang a JOIN kien_hang p ON p.ma=a.ma_kien_hang WHERE a.ma_chi_tiet_don_hang=d.ma AND p.trang_thai<>'CANCELLED'))) FROM chi_tiet_don_hang d WHERE d.ma_don_hang=o.ma),
             JSON_ARRAY()) AS items
     FROM don_hang o JOIN khach_hang c ON c.ma=o.ma_khach_hang
-    WHERE o.ma=p_id AND (v_role='ADMIN' OR (v_role='SALE' AND c.ma_nhan_vien_phu_trach=p_actor)
+    WHERE o.ma=p_id AND (v_role IN ('ADMIN','WAREHOUSE') OR (v_role='SALE' AND c.ma_nhan_vien_phu_trach=p_actor)
         OR (v_role='CUSTOMER' AND c.ma_nguoi_dung=p_actor));
 END$$
 
@@ -185,6 +187,16 @@ BEGIN
            (EXISTS(SELECT 1 FROM kien_hang WHERE ma_don_hang=p_id AND trang_thai<>'CANCELLED')
             OR EXISTS(SELECT 1 FROM thanh_toan WHERE ma_don_hang=p_id)) THEN
             SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='ORDER_HAS_DEPENDENCIES';
+        END IF;
+        IF EXISTS(SELECT 1 FROM kien_hang WHERE ma_don_hang=p_id) THEN
+            IF p_status='SHIPPING' AND NOT EXISTS(SELECT 1 FROM kien_hang WHERE ma_don_hang=p_id AND trang_thai IN ('IN_TRANSIT','DELIVERED')) THEN
+                SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='PACKAGE_PROGRESS_MISMATCH';
+            END IF;
+            IF p_status='DELIVERED' AND EXISTS(SELECT 1 FROM chi_tiet_don_hang i WHERE i.ma_don_hang=p_id AND i.so_luong>
+                (SELECT COALESCE(SUM(d.so_luong),0) FROM chi_tiet_kien_hang d JOIN kien_hang p ON p.ma=d.ma_kien_hang
+                 WHERE d.ma_chi_tiet_don_hang=i.ma AND p.trang_thai='DELIVERED')) THEN
+                SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='PACKAGE_PROGRESS_MISMATCH';
+            END IF;
         END IF;
         UPDATE don_hang SET trang_thai=p_status,ngay_cap_nhat=UTC_TIMESTAMP(6) WHERE ma=p_id;
     END IF;

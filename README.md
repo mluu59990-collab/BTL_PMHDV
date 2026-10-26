@@ -29,8 +29,8 @@ Kiểm tra: `curl http://127.0.0.1:8000/health`.
    Hai bên dùng cùng `JWT_SECRET_KEY` và cùng `GATEWAY_SHARED_SECRET`;
    hai loại khóa phải khác nhau, mỗi khóa ít nhất 32 ký tự.
 4. Mở `sql/cms_logistics_procedures.sql` trong MySQL Workbench và chạy toàn bộ
-   rồi chạy `sql/cms_logistics_customers.sql`, `sql/cms_logistics_orders.sql`
-   để cài stored procedure cho `cms_logistics`.
+   rồi chạy `sql/cms_logistics_customers.sql`, `sql/cms_logistics_orders.sql`,
+   `sql/cms_logistics_fulfillment.sql` để cài stored procedure cho `cms_logistics`.
    Các file procedure không thêm bảng hoặc dữ liệu mẫu.
    API đăng ký tạo CUSTOMER; ADMIN phải được quản trị viên cấp quyền trong DB.
    Các file SQL cũ `05`–`09` và `my_db_logistic.sql` thuộc schema trước đây.
@@ -61,6 +61,12 @@ Không có prefix `/api/v1`. Client gọi cổng 8000; Swagger đã tắt.
 | GET | /orders/{id} | Chi tiết đơn kèm hàng, cùng phạm vi với danh sách |
 | PATCH | /orders/{id} | ADMIN hoặc SALE phụ trách; chỉ sửa PENDING |
 | PATCH | /orders/{id}/status | ADMIN hoặc SALE phụ trách; đúng luồng trạng thái |
+| POST/PATCH/DELETE | /warehouses, /warehouses/{id} | ADMIN quản lý thông tin/xóa mềm kho |
+| GET | /warehouses, /warehouses/{id} | ADMIN/WAREHOUSE tất cả, SALE/CUSTOMER kho liên quan |
+| POST/PATCH | /packages, /packages/{id} | ADMIN/WAREHOUSE đóng và sửa kiện CREATED |
+| GET | /packages, /packages/{id} | ADMIN/WAREHOUSE tất cả; SALE/CUSTOMER trong phạm vi |
+| PATCH | /packages/{id}/status | ADMIN/WAREHOUSE nhập/xuất kho, giao/hủy |
+| GET | /packages/{id}/history | Lịch sử theo phạm vi của kiện |
 
 Ví dụ đăng ký: `{"username":"customer01","password":"Strong@123456","full_name":"Khách mới"}`.
 Đăng nhập: `{"username":"customer01","password":"Strong@123456"}`.
@@ -72,8 +78,9 @@ thu hồi refresh khi đổi quyền/trạng thái và bảo vệ ADMIN cuối c
 Logout không thu hồi ngay access token đã phát.
 
 DB không có bảng tỷ giá/bảng phí: các API này đã được gỡ, gọi với token hợp lệ trả 404.
-Đã có API khách hàng và đơn vận chuyển kèm hàng gửi. Kho, kiện hàng, lịch sử vận chuyển
-và thanh toán chưa có API nghiệp vụ. Không có danh mục sản phẩm bán hàng.
+Đã có API khách hàng, đơn vận chuyển, kho, kiện và lịch sử vận chuyển.
+Kiện bắt đầu đi/giao đủ hàng sẽ tự đồng bộ SHIPPING/DELIVERED của đơn.
+Thanh toán chưa có API nghiệp vụ. Không có danh mục sản phẩm bán hàng.
 Code CRM/catalog, service, router, repository và ORM model cũ đã được dọn khỏi BE/app.
 Các file SQL cũ ở thư mục gốc sql thuộc schema trước đây.
 
@@ -88,6 +95,7 @@ BE/.venv/bin/python -m pip install -r BE/requirements-dev.txt
 BE/.venv/bin/python Gateway/integration/check_flow.py BE
 BE/.venv/bin/python BE/tests/check_customers.py
 BE/.venv/bin/python BE/tests/check_orders.py --postman
+BE/.venv/bin/python BE/tests/check_fulfillment.py --postman
 cd Gateway && ../BE/.venv/bin/python -m pytest tests -q
 ```
 
@@ -105,3 +113,5 @@ Không xóa volume chứa dữ liệu. Muốn dùng Docker, kiểm tra schema v�
 API khách hàng chi tiết và luồng code: [docs/CUSTOMERS_API.md](docs/CUSTOMERS_API.md).
 
 API đơn vận chuyển và luồng code: [docs/ORDERS_API.md](docs/ORDERS_API.md).
+
+Kho/kiện/lịch sử và luồng test: [docs/FULFILLMENT_API.md](docs/FULFILLMENT_API.md).

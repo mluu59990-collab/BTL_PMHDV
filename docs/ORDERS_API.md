@@ -57,7 +57,8 @@ offset (>=0). Ví dụ:
 Danh sách trả `{items: [...], limit: 20, offset: 0}`. Chi tiết trả một đơn kèm items.
 Các trường: id, order_code, customer_id, created_by, recipient_name, recipient_phone,
 recipient_address, shipping_fee, status, note, created_at, updated_at.
-Mỗi dòng hàng: id, name, quantity, note. Thời gian trả UTC.
+Mỗi dòng hàng: id, name, quantity, note, packed_quantity, remaining_quantity.
+Số lượng đã đóng tính các kiện không CANCELLED; số còn lại dùng để tạo kiện mới. Thời gian trả UTC.
 
 ### Sửa đơn
 
@@ -90,8 +91,9 @@ không hủy sau SHIPPING. Gửi lại đúng trạng thái hiện tại trả 2
 Sửa thông tin sau xác nhận hoặc chuyển trạng thái sai trả 409.
 Hủy bị chặn khi còn kiện chưa CANCELLED hoặc đã có bất kỳ giao dịch thanh toán.
 
-Trạng thái đơn hiện được nhân viên cập nhật thủ công; chưa tự cập nhật trạng thái kiện,
-lịch sử vận chuyển hoặc đối soát thanh toán. Các phần đó thuộc API triển khai tiếp theo.
+Khi đơn chưa có kiện, vẫn dùng được luồng trạng thái thủ công. Khi đã có kiện,
+API kho/kiện tự đồng bộ SHIPPING và DELIVERED; chuyển trạng thái đơn thủ công không được
+lệch tiến độ thực tế của kiện. Xem [FULFILLMENT_API.md](FULFILLMENT_API.md).
 
 ## Phạm vi quyền
 
@@ -99,7 +101,8 @@ lịch sử vận chuyển hoặc đối soát thanh toán. Các phần đó thu
 - SALE tạo/sửa/chuyển trạng thái đơn của khách hiện được phân công. Quyền dựa vào khách,
   không dựa vào người tạo đơn: đổi SALE phụ trách thì quyền trên các đơn cũ chuyển theo.
 - CUSTOMER chỉ đọc đơn có khach_hang.ma_nguoi_dung bằng ID tài khoản mình, không được ghi.
-- ACCOUNTANT/WAREHOUSE chưa có quyền truy cập đơn trong phần này.
+- WAREHOUSE được xem toàn bộ đơn/hàng gửi để đóng kiện, không được sửa đơn trực tiếp.
+- ACCOUNTANT chưa có quyền truy cập đơn trong phần này.
 - Đơn ngoài phạm vi hoặc không tồn tại trả 404. List ngoài phạm vi trả items rỗng.
 - Khách ngừng hoạt động không được tạo thêm đơn; vẫn xem lịch sử đơn trong phạm vi.
 

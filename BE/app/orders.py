@@ -112,6 +112,7 @@ def order_database_error(exc):
             'ORDER_NOT_EDITABLE': (409, 'Chỉ được sửa đơn đang PENDING'),
             'INVALID_TRANSITION': (409, 'Không được chuyển trạng thái theo hướng này'),
             'ORDER_HAS_DEPENDENCIES': (409, 'Đơn đã có kiện hàng hoặc giao dịch liên quan'),
+            'PACKAGE_PROGRESS_MISMATCH': (409, 'Trạng thái đơn phải khớp tiến độ thực tế của các kiện'),
         }.get(str(exc.orig.args[1]), (409, 'Không thể xử lý đơn vận chuyển'))
         raise HTTPException(status, detail) from None
     raise exc
@@ -121,13 +122,13 @@ def create_order_router(current_user):
     router = APIRouter(prefix='/orders', tags=['Orders'])
 
     async def reader(user: Annotated[dict, Depends(current_user)]):
-        if user['role'] not in ('ADMIN', 'SALE', 'CUSTOMER'):
+        if user['role'] not in ('ADMIN', 'SALE', 'CUSTOMER', 'WAREHOUSE'):
             raise HTTPException(403, 'Không có quyền truy cập đơn vận chuyển')
         return user
 
     async def writer(user: Annotated[dict, Depends(reader)]):
         if user['role'] not in ('ADMIN', 'SALE'):
-            raise HTTPException(403, 'CUSTOMER chỉ được xem đơn của mình')
+            raise HTTPException(403, 'Chỉ ADMIN hoặc SALE được quản lý đơn vận chuyển')
         return user
 
     @router.post('', status_code=201)
