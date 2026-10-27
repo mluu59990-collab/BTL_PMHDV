@@ -1,0 +1,20 @@
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+src = ["BE", "Gateway"]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I", "B", "C4", "SIM", "ASYNC"]
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI intentionally resolves these defaults as dependencies/validation.
+extend-immutable-calls = ["fastapi.Depends", "fastapi.Query", "fastapi.Path", "app.auth.require_roles"]
+
+[tool.ruff.lint.per-file-ignores]
+# These runners must configure the temporary database before importing the app.
+"BE/tests/check_*.py" = ["E402"]
+"Gateway/integration/check_flow.py" = ["E402"]
+
+[tool.pytest.ini_options]
+testpaths = ["Gateway/tests"]
+pythonpath = ["BE", "Gateway"]

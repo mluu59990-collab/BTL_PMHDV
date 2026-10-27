@@ -110,7 +110,7 @@ lệch tiến độ thực tế của kiện. Xem [FULFILLMENT_API.md](FULFILLME
 ## Luồng code
 
 1. Gateway/gateway_app/app.py kiểm tra JWT, thêm x-gateway-key và chuyển /orders sang BE.
-2. BE/app/main.py kiểm tra khóa nội bộ; current_user đọc trạng thái/vai trò hiện tại từ DB;
+2. BE/app/main.py kiểm tra khóa nội bộ; current_user trong BE/app/auth.py đọc trạng thái/vai trò hiện tại từ DB;
    include_router(create_order_router(current_user)) đăng ký các API đơn.
 3. BE/app/orders.py: OrderCreate/OrderUpdate/OrderStatusUpdate kiểm tra JSON; reader/writer
    kiểm tra vai trò. Hàm route gọi CALL sp_* với actor lấy từ tài khoản đã xác thực.

@@ -131,7 +131,7 @@ payment_status:
 ## Luồng code
 
 1. Gateway/gateway_app/app.py kiểm tra access token, thêm khóa nội bộ và chuyển request.
-2. BE/app/main.py kiểm tra khóa, current_user xác thực và đọc tài khoản từ DB;
+2. BE/app/main.py kiểm tra khóa, current_user trong BE/app/auth.py xác thực và đọc tài khoản từ DB;
    include_router(create_payment_router(current_user)) gắn router thanh toán.
 3. BE/app/payments.py: PaymentCreate kiểm tra JSON, reader/writer kiểm tra vai trò,
    record_payment gọi procedure, commit/rollback và trả 201/200 theo replayed.

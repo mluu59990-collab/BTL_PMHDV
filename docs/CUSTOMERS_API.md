@@ -69,7 +69,7 @@ CUSTOMER không được xem hồ sơ đã ngừng hoạt động kể cả gử
 
 1. `Gateway/gateway_app/app.py`: kiểm tra JWT, thêm khóa nội bộ, chuyển request tới BE.
    /customers không nằm trong PUBLIC_ROUTES nên tự được bảo vệ.
-2. `BE/app/main.py`: middleware kiểm tra khóa; current_user đọc trạng thái/vai trò từ DB;
+2. `BE/app/main.py`: middleware kiểm tra khóa; current_user trong BE/app/auth.py đọc trạng thái/vai trò từ DB;
    include_router(create_customer_router(current_user)) đăng ký API khách hàng.
 3. `BE/app/customers.py`: reader/writer kiểm tra vai trò, CustomerCreate/CustomerUpdate
    kiểm tra JSON, gọi CALL sp_* bằng tham số. Lỗi SQL chuyển thành 403/404/409/422.

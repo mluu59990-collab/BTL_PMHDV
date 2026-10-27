@@ -178,7 +178,7 @@ ra khỏi kho thì null; các kho đã đi qua còn trong lịch sử.
 ## File và luồng code
 
 1. Gateway/gateway_app/app.py kiểm tra JWT và chuyển request cùng khóa nội bộ.
-2. BE/app/main.py: middleware, current_user, include_router(create_fulfillment_router(current_user)).
+2. BE/app/main.py: middleware, current_user từ BE/app/auth.py, include_router(create_fulfillment_router(current_user)).
 3. BE/app/fulfillment.py: schema JSON, reader/operator/administrator; các route gọi procedure;
    one/many xử lý kết quả, commit/rollback và ánh xạ lỗi HTTP.
 4. BE/app/infrastructure/db/session.py cung cấp session MySQL.

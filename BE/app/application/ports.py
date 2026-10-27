@@ -1,4 +1,5 @@
 """Các 'cổng' mà tầng application cần từ bên ngoài (hash mật khẩu, JWT)."""
+
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime

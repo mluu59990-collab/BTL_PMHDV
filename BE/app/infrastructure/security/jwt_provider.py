@@ -50,7 +50,9 @@ class JwtTokenProvider(TokenProvider):
             role=data.get("role"),
         )
 
-    def _encode(self, user_id: int, token_type: TokenType, ttl: timedelta, extra: dict | None = None) -> IssuedToken:
+    def _encode(
+        self, user_id: int, token_type: TokenType, ttl: timedelta, extra: dict | None = None
+    ) -> IssuedToken:
         now = utcnow()
         expires_at = now + ttl
         jti = uuid.uuid4().hex

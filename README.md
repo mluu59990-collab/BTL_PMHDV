@@ -33,7 +33,7 @@ Kiểm tra: `curl http://127.0.0.1:8000/health`.
    `sql/cms_logistics_fulfillment.sql`, `sql/cms_logistics_payments.sql` để cài stored procedure cho `cms_logistics`.
    Các file procedure không thêm bảng hoặc dữ liệu mẫu.
    API đăng ký tạo CUSTOMER; ADMIN phải được quản trị viên cấp quyền trong DB.
-   Các file SQL cũ `05`–`09` và `my_db_logistic.sql` thuộc schema trước đây.
+   Các file SQL thuộc schema trước đây được lưu riêng trong `sql/legacy/`.
 
 ## API hiện tại
 
@@ -87,7 +87,7 @@ Kiện bắt đầu đi/giao đủ hàng sẽ tự đồng bộ SHIPPING/DELIVER
 Đã có API ghi nhận thu/hoàn phí và đối soát số dư theo đơn; chưa có tích hợp chuyển tiền ngân hàng.
 Không có danh mục sản phẩm bán hàng.
 Code CRM/catalog, service, router, repository và ORM model cũ đã được dọn khỏi BE/app.
-Các file SQL cũ ở thư mục gốc sql thuộc schema trước đây.
+SQL lịch sử nằm trong `sql/legacy/`; không chạy các file này lên database hiện tại.
 
 ## Postman và kiểm thử
 
@@ -123,3 +123,19 @@ API đơn vận chuyển và luồng code: [docs/ORDERS_API.md](docs/ORDERS_API.
 Kho/kiện/lịch sử và luồng test: [docs/FULFILLMENT_API.md](docs/FULFILLMENT_API.md).
 
 Thu/hoàn phí và số dư: [docs/PAYMENTS_API.md](docs/PAYMENTS_API.md).
+
+## Kiểm tra chất lượng code
+
+Chạy từ gốc repo sau khi cài `BE/requirements-dev.txt`:
+
+```bash
+BE/.venv/bin/python -m ruff check BE Gateway
+BE/.venv/bin/python -m ruff format --check BE Gateway
+BE/.venv/bin/python -m pytest
+```
+
+Cấu hình lint/format và đường dẫn pytest nằm trong `pyproject.toml`.
+Các runner `BE/tests/check_*.py` dùng chung `BE/tests/support.py` để đọc SQL,
+chuyển request qua Gateway và chạy Postman trên database tạm.
+Collection đang dùng nằm trong `Gateway/postman/`; script sinh collection Buổi 1 cũ
+đã được bỏ vì chứa API tỷ giá/biểu phí không còn trong phạm vi 10 bảng.

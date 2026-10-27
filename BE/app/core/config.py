@@ -10,7 +10,6 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     app_name: str = "CMS Nguonhang1688"
-    api_v1_prefix: str = "/api/v1"
     debug: bool = False
 
     # Kết nối DB bất đồng bộ (driver asyncmy)
@@ -27,13 +26,6 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 30
     refresh_token_expire_days: int = 7
-
-    # CORS: các origin cách nhau bằng dấu phẩy
-    cors_origins: str = "http://localhost:3000,http://localhost:5173"
-
-    @property
-    def cors_origin_list(self) -> list[str]:
-        return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
 
 
 @lru_cache

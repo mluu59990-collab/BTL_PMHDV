@@ -9,12 +9,13 @@ Cài procedure bằng cách chạy `../sql/cms_logistics_procedures.sql`, rồi
 
 Code hiện tại:
 
-- `app/main.py`: auth, quyền và đăng ký router khách hàng.
+- `app/main.py`: vòng đời ứng dụng, middleware Gateway và đăng ký router.
+- `app/auth.py`: xác thực, phiên đăng nhập, phân quyền và quản lý tài khoản.
 - `app/customers.py`: 5 API khách hàng, schema và xử lý lỗi.
 - `app/orders.py`: 5 API đơn vận chuyển, hàng gửi và trạng thái.
 - `app/fulfillment.py`: 11 API kho, kiện, nhập/xuất kho và lịch sử.
 - `app/payments.py`: 5 API thu/hoàn phí, lịch sử và số dư.
-- `app/core/`: cấu hình và thời gian UTC.
+- `app/core/`: cấu hình, thời gian UTC và các kiểu validation dùng chung.
 - `app/domain/`: loại token và lỗi xác thực.
 - `app/application/ports.py`: giao diện hash/JWT và kiểu dữ liệu token.
 - `app/infrastructure/db/session.py`: engine và session MySQL.
