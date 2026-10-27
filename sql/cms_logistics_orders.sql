@@ -16,7 +16,7 @@ BEGIN
     ELSE
         SELECT vai_tro INTO p_role FROM nguoi_dung WHERE ma=p_actor AND trang_thai='ACTIVE';
     END IF;
-    IF p_role IS NULL OR p_role NOT IN ('ADMIN','SALE','CUSTOMER','WAREHOUSE')
+    IF p_role IS NULL OR p_role NOT IN ('ADMIN','SALE','CUSTOMER','WAREHOUSE','ACCOUNTANT')
        OR (p_write AND p_role NOT IN ('ADMIN','SALE')) THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='FORBIDDEN';
     END IF;
@@ -57,7 +57,7 @@ BEGIN
         o.phi_van_chuyen AS shipping_fee, o.trang_thai AS status, o.ghi_chu AS note,
         o.ngay_tao AS created_at, o.ngay_cap_nhat AS updated_at
     FROM don_hang o JOIN khach_hang c ON c.ma=o.ma_khach_hang
-    WHERE (v_role IN ('ADMIN','WAREHOUSE') OR (v_role='SALE' AND c.ma_nhan_vien_phu_trach=p_actor)
+    WHERE (v_role IN ('ADMIN','WAREHOUSE','ACCOUNTANT') OR (v_role='SALE' AND c.ma_nhan_vien_phu_trach=p_actor)
         OR (v_role='CUSTOMER' AND c.ma_nguoi_dung=p_actor))
       AND (p_customer IS NULL OR o.ma_khach_hang=p_customer)
       AND (p_status IS NULL OR o.trang_thai=p_status)
@@ -83,7 +83,7 @@ BEGIN
             'remaining_quantity',d.so_luong-(SELECT COALESCE(SUM(a.so_luong),0) FROM chi_tiet_kien_hang a JOIN kien_hang p ON p.ma=a.ma_kien_hang WHERE a.ma_chi_tiet_don_hang=d.ma AND p.trang_thai<>'CANCELLED'))) FROM chi_tiet_don_hang d WHERE d.ma_don_hang=o.ma),
             JSON_ARRAY()) AS items
     FROM don_hang o JOIN khach_hang c ON c.ma=o.ma_khach_hang
-    WHERE o.ma=p_id AND (v_role IN ('ADMIN','WAREHOUSE') OR (v_role='SALE' AND c.ma_nhan_vien_phu_trach=p_actor)
+    WHERE o.ma=p_id AND (v_role IN ('ADMIN','WAREHOUSE','ACCOUNTANT') OR (v_role='SALE' AND c.ma_nhan_vien_phu_trach=p_actor)
         OR (v_role='CUSTOMER' AND c.ma_nguoi_dung=p_actor));
 END$$
 
@@ -185,7 +185,7 @@ BEGIN
         END IF;
         IF p_status='CANCELLED' AND
            (EXISTS(SELECT 1 FROM kien_hang WHERE ma_don_hang=p_id AND trang_thai<>'CANCELLED')
-            OR EXISTS(SELECT 1 FROM thanh_toan WHERE ma_don_hang=p_id)) THEN
+            OR (SELECT COALESCE(SUM(IF(loai_giao_dich='PAYMENT',so_tien,-so_tien)),0) FROM thanh_toan WHERE ma_don_hang=p_id)<>0) THEN
             SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='ORDER_HAS_DEPENDENCIES';
         END IF;
         IF EXISTS(SELECT 1 FROM kien_hang WHERE ma_don_hang=p_id) THEN

@@ -5,7 +5,7 @@ Xem [hướng dẫn hiện tại](../README.md) và [API](../docs/API_BUOI_1.md)
 Entrypoint: `app.main:app`, cổng 8001. Cấu hình `.env` trỏ tới `cms_logistics`.
 Cài procedure bằng cách chạy `../sql/cms_logistics_procedures.sql`, rồi
 `../sql/cms_logistics_customers.sql`, `../sql/cms_logistics_orders.sql`,
-`../sql/cms_logistics_fulfillment.sql` trong MySQL Workbench.
+`../sql/cms_logistics_fulfillment.sql`, `../sql/cms_logistics_payments.sql` trong MySQL Workbench.
 
 Code hiện tại:
 
@@ -13,6 +13,7 @@ Code hiện tại:
 - `app/customers.py`: 5 API khách hàng, schema và xử lý lỗi.
 - `app/orders.py`: 5 API đơn vận chuyển, hàng gửi và trạng thái.
 - `app/fulfillment.py`: 11 API kho, kiện, nhập/xuất kho và lịch sử.
+- `app/payments.py`: 5 API thu/hoàn phí, lịch sử và số dư.
 - `app/core/`: cấu hình và thời gian UTC.
 - `app/domain/`: loại token và lỗi xác thực.
 - `app/application/ports.py`: giao diện hash/JWT và kiểu dữ liệu token.
@@ -24,3 +25,5 @@ Kiểm thử từ gốc repo: `BE/.venv/bin/python Gateway/integration/check_flo
 Kiểm thử đơn/MySQL tạm/Postman: `BE/.venv/bin/python BE/tests/check_orders.py --postman` (từ gốc repo).
 
 Kiểm thử kho/kiện: `BE/.venv/bin/python BE/tests/check_fulfillment.py --postman` (từ gốc repo).
+
+Kiểm thử thu/hoàn: `BE/.venv/bin/python BE/tests/check_payments.py --postman` (từ gốc repo).

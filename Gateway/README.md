@@ -21,3 +21,6 @@ Hướng dẫn: [ORDERS_API.md](../docs/ORDERS_API.md).
 
 Kho/kiện: import `postman/Logistics-Fulfillment.postman_collection.json`, cấu hình
 `admin_username`/`admin_password`. Xem [FULFILLMENT_API.md](../docs/FULFILLMENT_API.md).
+
+Thu/hoàn phí: import `postman/Logistics-Payments.postman_collection.json`, cấu hình
+`admin_username`/`admin_password`. Xem [PAYMENTS_API.md](../docs/PAYMENTS_API.md).

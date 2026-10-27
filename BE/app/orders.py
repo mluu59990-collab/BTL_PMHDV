@@ -122,7 +122,7 @@ def create_order_router(current_user):
     router = APIRouter(prefix='/orders', tags=['Orders'])
 
     async def reader(user: Annotated[dict, Depends(current_user)]):
-        if user['role'] not in ('ADMIN', 'SALE', 'CUSTOMER', 'WAREHOUSE'):
+        if user['role'] not in ('ADMIN', 'SALE', 'CUSTOMER', 'WAREHOUSE', 'ACCOUNTANT'):
             raise HTTPException(403, 'Không có quyền truy cập đơn vận chuyển')
         return user
 

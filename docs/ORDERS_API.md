@@ -89,7 +89,8 @@ Luồng: PENDING → CONFIRMED → SHIPPING → DELIVERED.
 PENDING hoặc CONFIRMED được chuyển CANCELLED. Không quay lại bước trước, không bỏ bước,
 không hủy sau SHIPPING. Gửi lại đúng trạng thái hiện tại trả 200.
 Sửa thông tin sau xác nhận hoặc chuyển trạng thái sai trả 409.
-Hủy bị chặn khi còn kiện chưa CANCELLED hoặc đã có bất kỳ giao dịch thanh toán.
+Hủy bị chặn khi còn kiện chưa CANCELLED hoặc số thu ròng chưa về 0.
+Phải hoàn đủ tiền trước khi hủy, giữ nguyên ledger sau hủy. Xem [PAYMENTS_API.md](PAYMENTS_API.md).
 
 Khi đơn chưa có kiện, vẫn dùng được luồng trạng thái thủ công. Khi đã có kiện,
 API kho/kiện tự đồng bộ SHIPPING và DELIVERED; chuyển trạng thái đơn thủ công không được
@@ -102,7 +103,7 @@ lệch tiến độ thực tế của kiện. Xem [FULFILLMENT_API.md](FULFILLME
   không dựa vào người tạo đơn: đổi SALE phụ trách thì quyền trên các đơn cũ chuyển theo.
 - CUSTOMER chỉ đọc đơn có khach_hang.ma_nguoi_dung bằng ID tài khoản mình, không được ghi.
 - WAREHOUSE được xem toàn bộ đơn/hàng gửi để đóng kiện, không được sửa đơn trực tiếp.
-- ACCOUNTANT chưa có quyền truy cập đơn trong phần này.
+- ACCOUNTANT được đọc đơn để thu/hoàn phí, không được sửa hoặc chuyển trạng thái đơn.
 - Đơn ngoài phạm vi hoặc không tồn tại trả 404. List ngoài phạm vi trả items rỗng.
 - Khách ngừng hoạt động không được tạo thêm đơn; vẫn xem lịch sử đơn trong phạm vi.
 

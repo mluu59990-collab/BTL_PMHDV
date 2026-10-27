@@ -30,7 +30,7 @@ Kiểm tra: `curl http://127.0.0.1:8000/health`.
    hai loại khóa phải khác nhau, mỗi khóa ít nhất 32 ký tự.
 4. Mở `sql/cms_logistics_procedures.sql` trong MySQL Workbench và chạy toàn bộ
    rồi chạy `sql/cms_logistics_customers.sql`, `sql/cms_logistics_orders.sql`,
-   `sql/cms_logistics_fulfillment.sql` để cài stored procedure cho `cms_logistics`.
+   `sql/cms_logistics_fulfillment.sql`, `sql/cms_logistics_payments.sql` để cài stored procedure cho `cms_logistics`.
    Các file procedure không thêm bảng hoặc dữ liệu mẫu.
    API đăng ký tạo CUSTOMER; ADMIN phải được quản trị viên cấp quyền trong DB.
    Các file SQL cũ `05`–`09` và `my_db_logistic.sql` thuộc schema trước đây.
@@ -67,6 +67,10 @@ Không có prefix `/api/v1`. Client gọi cổng 8000; Swagger đã tắt.
 | GET | /packages, /packages/{id} | ADMIN/WAREHOUSE tất cả; SALE/CUSTOMER trong phạm vi |
 | PATCH | /packages/{id}/status | ADMIN/WAREHOUSE nhập/xuất kho, giao/hủy |
 | GET | /packages/{id}/history | Lịch sử theo phạm vi của kiện |
+| POST | /payments | ADMIN/ACCOUNTANT ghi thu phí |
+| POST | /payments/refunds | ADMIN/ACCOUNTANT ghi hoàn tiền |
+| GET | /payments, /payments/{id} | ADMIN/ACCOUNTANT tất cả; SALE/CUSTOMER theo phạm vi |
+| GET | /orders/{id}/payment-summary | Tổng thu/hoàn/số dư theo cùng phạm vi |
 
 Ví dụ đăng ký: `{"username":"customer01","password":"Strong@123456","full_name":"Khách mới"}`.
 Đăng nhập: `{"username":"customer01","password":"Strong@123456"}`.
@@ -80,7 +84,8 @@ Logout không thu hồi ngay access token đã phát.
 DB không có bảng tỷ giá/bảng phí: các API này đã được gỡ, gọi với token hợp lệ trả 404.
 Đã có API khách hàng, đơn vận chuyển, kho, kiện và lịch sử vận chuyển.
 Kiện bắt đầu đi/giao đủ hàng sẽ tự đồng bộ SHIPPING/DELIVERED của đơn.
-Thanh toán chưa có API nghiệp vụ. Không có danh mục sản phẩm bán hàng.
+Đã có API ghi nhận thu/hoàn phí và đối soát số dư theo đơn; chưa có tích hợp chuyển tiền ngân hàng.
+Không có danh mục sản phẩm bán hàng.
 Code CRM/catalog, service, router, repository và ORM model cũ đã được dọn khỏi BE/app.
 Các file SQL cũ ở thư mục gốc sql thuộc schema trước đây.
 
@@ -96,6 +101,7 @@ BE/.venv/bin/python Gateway/integration/check_flow.py BE
 BE/.venv/bin/python BE/tests/check_customers.py
 BE/.venv/bin/python BE/tests/check_orders.py --postman
 BE/.venv/bin/python BE/tests/check_fulfillment.py --postman
+BE/.venv/bin/python BE/tests/check_payments.py --postman
 cd Gateway && ../BE/.venv/bin/python -m pytest tests -q
 ```
 
@@ -115,3 +121,5 @@ API khách hàng chi tiết và luồng code: [docs/CUSTOMERS_API.md](docs/CUSTO
 API đơn vận chuyển và luồng code: [docs/ORDERS_API.md](docs/ORDERS_API.md).
 
 Kho/kiện/lịch sử và luồng test: [docs/FULFILLMENT_API.md](docs/FULFILLMENT_API.md).
+
+Thu/hoàn phí và số dư: [docs/PAYMENTS_API.md](docs/PAYMENTS_API.md).
